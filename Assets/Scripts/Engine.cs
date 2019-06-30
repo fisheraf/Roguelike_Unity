@@ -35,9 +35,12 @@ public class Engine : MonoBehaviour
         }
 
         //enemy turn test
-        if (Input.GetKeyDown(KeyCode.Space))
+        if(gameState == GameState.EnemyTurn)
         {
-            gameState = GameState.PlayerTurn;
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                gameState = GameState.PlayerTurn;
+            }
         }
     }
 
@@ -119,7 +122,12 @@ public class Engine : MonoBehaviour
         else
         {
             entity.Move(dx, dy);
-            gameState = GameState.EnemyTurn;
+            //gameState = GameState.EnemyTurn;
+
+            GameMap gameMapObj = FindObjectOfType<GameMap>().GetComponent<GameMap>();
+            //gameMapObj.FOVRecompute();
+            gameMapObj.FOV();
+            //gameMapObj.GetVisibleCells();
         }        
     }
 }

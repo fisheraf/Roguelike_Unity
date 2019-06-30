@@ -1,8 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Tilemaps;
+using UnityEditor;
 
-public class Tile : MonoBehaviour
+public class TileScript : MonoBehaviour
 {
     public bool isBlocked { get; set; }
     public bool isblocked;
