@@ -5,19 +5,22 @@ using UnityEngine;
 public class Entity : MonoBehaviour
 {    
     public Vector2 position;//seperate to X & Y?
-    public string entityName;
-    public Sprite entitySprite;
+    //public string entityName;
+    public Sprite[] entitySprites;
 
     SpriteRenderer spriteRenderer;
 
-    [SerializeField] public CircleCollider2D[] directionalColliders;
+    public Fighter fighter;
+    public AI ai;
+
+    //[SerializeField] public CircleCollider2D[] directionalColliders;
 
     // Start is called before the first frame update
     void Start()
     {
-        spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        gameObject.name = entityName;
-        spriteRenderer.sprite = entitySprite;
+        //spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        //gameObject.name = entityName;
+        //spriteRenderer.sprite = entitySprites[0];
     }
 
     // Update is called once per frame

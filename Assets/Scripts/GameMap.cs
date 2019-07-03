@@ -6,12 +6,15 @@ using UnityEngine.Tilemaps;
 using System.Diagnostics;
 using Debug = UnityEngine.Debug;
 
+using NesScripts.Controls.PathFind;
+
 public class GameMap : MonoBehaviour
 {
     public Stopwatch timer;
     
 
     [SerializeField] Tilemap tilemap;
+    [SerializeField] Engine engine;
 
     public Vector2Int botLeft;
     public Vector2Int size;
@@ -24,6 +27,8 @@ public class GameMap : MonoBehaviour
     public int maxRoomSize = 10;
     public int minRoomSize = 5;
     public int maxNumberOfRooms = 50;
+
+    public int maxNumberOfMonstersPerRoom = 3;
 
     //public int fovAlgorithm = 0;
     public bool fovLightWalls = true;
@@ -44,7 +49,7 @@ public class GameMap : MonoBehaviour
 
     //public RectInt r;
 
-    GameObject player;
+    public GameObject player;
 
     List<Vector3Int> seenTiles = new List<Vector3Int>();
     List<Vector3Int> recentTiles = new List<Vector3Int>();
@@ -60,13 +65,21 @@ public class GameMap : MonoBehaviour
     //List<bool> tileVisible = new List<bool>(4500);
     //List<bool> tileIsWall = new List<bool>(4500);
 
-    bool[] tileSeen = new bool[5185];
-    bool[] tileVisible = new bool[5185];
-    bool[] tileIsWall = new bool[5185];
+
+    bool[,] tileSeen = new bool[96, 54];
+    bool[,] tileVisible = new bool[96, 54];
+    public bool[,] tileIsWall = new bool[96, 54];
+
+    bool [,] hasEntity = new bool [96, 54];
+    //bool is item
+
+    public List<GameObject> entities = new List<GameObject>();
+
 
     // Start is called before the first frame update
     void Start()
     {
+        engine = FindObjectOfType<Engine>();
         //set camera size from width & height?
         //PlaceTile();        
         FillMap();
@@ -91,6 +104,10 @@ public class GameMap : MonoBehaviour
         {
             ShowMap();
         }
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            engine.CreateEntity((int)player.transform.position.x + 1, (int)player.transform.position.y + 1, -1 , 1, new Color32(255, 0, 0, 255), "AI", false, true);
+        }
     }
 
     /*void PlaceTile()// X & Y?
@@ -113,15 +130,15 @@ public class GameMap : MonoBehaviour
             {
                 PlaceTile(i, j, wallTiles);
                 //Debug.Log(i * mapHeight + j);
-                tileIsWall[i * mapHeight + j] = true;
+                tileIsWall[i, j] = true;
             }
         }
     }
 
     void MakeMap()
     {
-        //timer = new Stopwatch();
-        //timer.Start();
+        timer = new Stopwatch();
+        timer.Start();
 
         List<Rect> rooms = new List<Rect>();
         int numberOfRooms = 0;
@@ -165,7 +182,13 @@ public class GameMap : MonoBehaviour
 
                 if (numberOfRooms == 0)
                 {
-                    player.transform.position = new Vector3(newX, newY, -1);
+                    engine.CreateEntity(newX, newY, -1, 0, new Color32(0, 135, 255, 255), "Player");
+                    player = GameObject.Find("Player");
+                    //if(player == null)
+                    //{
+                    //    player = GameObject.Find("Player");
+                    //}
+                    //player.transform.position = new Vector3(newX, newY, -1);
                 }
                 else
                 {
@@ -194,16 +217,59 @@ public class GameMap : MonoBehaviour
                     }
                 }
 
+                PlaceEntities(newRoomInt);
+
                 rooms.Add(newRoom);
                 numberOfRooms++;
             }
             //yield return new WaitForSeconds(.1f);
         }
-        //timer.Stop();
-        //Debug.Log(timer.Elapsed);
+        timer.Stop();
+        Debug.Log("Creating map took:" + timer.Elapsed);
         //FOVRecompute();
         FOV();
         //GetVisibleCells();
+    }
+    
+
+    void CreateRoom(RectInt rectInt)
+    {
+        for (int i = rectInt.xMin; i < rectInt.xMax; i++)
+        {
+            for (int j = rectInt.yMin; j < rectInt.yMax; j++)
+            {
+                PlaceTile(i, j, floorTiles);
+                tileIsWall[i, j] = false;
+                //StartCoroutine(PlaceTileWithDelay(i, j, floorTiles));
+            }
+        }
+        //PlaceEntities(rectInt);
+    }
+    void CreateHorizontalTunnel(int x1, int x2, int y)
+    {
+        for (int x = Mathf.Min(x1, x2); x < Mathf.Max(x1, x2) + 1; x++)
+        {
+            PlaceTile(x, y, floorTiles);
+            tileIsWall[x, y] = false;
+            //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
+        }
+    }
+
+    void CreateVerticalTunnel(int y1, int y2, int x)
+    {
+        for (int y = Mathf.Min(y1, y2); y < Mathf.Max(y1, y2) + 1; y++)
+        {
+            PlaceTile(x, y, floorTiles);
+            tileIsWall[x, y] = false;
+
+            //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
+        }
+    }
+
+    void PlaceTile(int x, int y, TileBase tile)
+    {
+        tilemap.SetTile(new Vector3Int(x, y, 0), tile);
+        tilemap.SetTileFlags(new Vector3Int(x, y, 0), TileFlags.None);
     }
 
     IEnumerator CreateRoomD(RectInt rectInt)
@@ -219,19 +285,6 @@ public class GameMap : MonoBehaviour
         }
     }
 
-    void CreateRoom(RectInt rectInt)
-    {
-        for (int i = rectInt.xMin; i < rectInt.xMax; i++)
-        {
-            for (int j = rectInt.yMin; j < rectInt.yMax; j++)
-            {
-                PlaceTile(i, j, floorTiles);
-                tileIsWall[i * mapHeight + j] = false;
-                //StartCoroutine(PlaceTileWithDelay(i, j, floorTiles));
-            }
-        }
-    }
-
     IEnumerator CreateHorizontalTunnelD(int x1, int x2, int y)
     {
         for (int x   = Mathf.Min(x1, x2); x < Mathf.Max(x1, x2) + 1; x++)
@@ -241,42 +294,287 @@ public class GameMap : MonoBehaviour
             //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
         }
     }
-
-    void CreateHorizontalTunnel(int x1, int x2, int y)
-    {
-        for (int x = Mathf.Min(x1, x2); x < Mathf.Max(x1, x2) + 1; x++)
-        {
-            PlaceTile(x, y, floorTiles);
-            tileIsWall[x * mapHeight + y] = false;
-            //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
-        }
-    }
-
-    void CreateVerticalTunnel(int y1, int y2, int x)
-    {
-        for (int y = Mathf.Min(y1, y2); y < Mathf.Max(y1, y2) + 1; y++)
-        {
-            PlaceTile(x, y, floorTiles);
-            tileIsWall[x * mapHeight + y] = false;
-
-            //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
-        }
-    }
-
-
-    void PlaceTile(int x, int y, TileBase tile)
-    {
-        tilemap.SetTile(new Vector3Int(x, y, 0), tile);
-        tilemap.SetTileFlags(new Vector3Int(x, y, 0), TileFlags.None);
-    }
-
+       
     IEnumerator PlaceTileWithDelay(int x, int y, TileBase tile)
     {
         tilemap.SetTile(new Vector3Int(x, y, 0), tile);
         yield return new WaitForSeconds(1);
     }
+         
+
+    float degToRad = Mathf.PI / 100;
+
+    int DiagDistance(int x, int y, int x1, int y1)
+    {
+        int dx = x1 - x;
+        int dy = y1 - y;
+        return  Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
+    }
+
+    public void FOV()
+    {
+        //Debug.Log("FOV");
+        ClearVisibleTiles();
+        timer = new Stopwatch();
+        timer.Start();
+
+        visibleWallTiles.Clear();
+        visibleFloorTiles.Clear();
+
+        previousTiles.AddRange(recentTiles);
+
+        recentTiles.Clear();
+        //tileVisible = new bool[5185];
 
 
+        int x = Mathf.RoundToInt(player.transform.position.x);
+        int y = Mathf.RoundToInt(player.transform.position.y);
+
+        for (int i = 0; i < 360; i++)//drop to every 3rd?
+        {
+            float deg = i * degToRad;
+
+            int endX = Mathf.RoundToInt(Mathf.Cos(deg) * fovRadius + x);
+            int endY = Mathf.RoundToInt(Mathf.Sin(deg) * fovRadius + y);
+
+            int d = DiagDistance(x, y, endX, endY);
+
+            for (int j = 0; j < d; j++)
+            {
+                int tx = Mathf.RoundToInt(Mathf.Lerp(x, endX, j / Mathf.Round(d)));
+                int ty = Mathf.RoundToInt(Mathf.Lerp(y, endY, j / Mathf.Round(d)));
+
+                if (tx < 0 || tx > mapWidth) { continue; }
+                if (ty < 0 || ty > mapWidth) { continue; }
+
+                if (tilemap.GetTile(new Vector3Int(tx, ty, 0)).name == "WallTile")
+                {
+                    //visibleWallTiles.Add(new Vector3Int(tx, ty, 0));
+                    //seenTiles.Add(new Vector3Int(tx, ty, 0));
+                    tileVisible[tx, ty] = true;
+                    tileSeen[tx, ty] = true;
+                    break;
+                }
+
+                //visibleFloorTiles.Add(new Vector3Int(x, y, 0));
+                //seenTiles.Add(new Vector3Int(tx, ty, 0));
+
+                tileVisible[tx, ty] = true;
+                tileSeen[tx, ty] = true;
+
+                recentTiles.Add(new Vector3Int(tx, ty, 0));
+            }
+        }
+
+        //RenderRecent();
+
+        timer.Stop();
+        //Debug.Log("Rendering took:" + timer.Elapsed);
+        previousTiles.Clear();
+
+        RayCastPostProcess();
+
+        Render();
+    }
+
+    void ClearVisibleTiles()
+    {
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                tileVisible[x, y] = false;
+
+                /*foreach (GameObject entity in entities)
+                {
+                    if (entity.transform.position.z == -1 && entity.name != "Player")
+                    {
+                        Debug.Log("move forward" + entity.transform.position + "," + entity.name);
+                        //entity.transform.position = new Vector3(entity.transform.position.x, entity.transform.position.y, 1);
+                        //entity.GetComponentInChildren<GameObject>().SetActive(false);
+                    }
+                }*/
+            }
+        }
+    }
+
+    void RayCastPostProcess()
+    {
+        int x = (int)player.transform.position.x;
+        int y = (int)player.transform.position.y;
+
+        int z = x * mapHeight + y;
+        //Debug.Log("X:" + x + " Y:" + y + " Z:" + z + " W:" + mapWidth + " H:" + mapHeight);
+
+        if (y < mapHeight - 5)
+        {
+            if (tileVisible[x, y + 1] == true && tileVisible[x, y + 2] == true && tileVisible[x, y + 3] == true)
+            {
+                //Debug.Log("added tile: " + (z + 4 + mapHeight);
+                tileVisible[x + 1, y + 4] = true;
+                tileVisible[x + 1, y + 5] = true;
+                tileVisible[x - 1, y + 4] = true;
+                tileVisible[x - 1, y + 5] = true;
+            }
+        }
+
+        if (y > 5)
+        {
+            if (tileVisible[x, y - 1] == true && tileVisible[x, y - 2] == true && tileVisible[x, y - 3] == true)
+            {
+                //Debug.Log("added tile: " + (z + 4 + mapHeight);
+                tileVisible[x + 1, y - 4] = true;
+                tileVisible[x + 1, y - 5] = true;
+                tileVisible[x - 1, y - 4] = true;
+                tileVisible[x - 1, y - 5] = true;
+            }
+        }
+
+        if (x < mapWidth - 5)
+        {
+            if (tileVisible[x + 1, y] == true && tileVisible[x + 2, y] == true && tileVisible[x + 3, y] == true)
+            {
+                //Debug.Log("added tile: " + (z + 4 + mapHeight);
+                tileVisible[x + 4, y + 1] = true;
+                tileVisible[x + 5, y + 1] = true;
+                tileVisible[x + 4, y - 1] = true;
+                tileVisible[x + 5, y - 1] = true;
+            }
+        }
+
+        if(x > 5)
+        {
+            if (tileVisible[x + 1, y] == true && tileVisible[x - 2, y] == true && tileVisible[x - 3, y] == true)
+            {
+                //Debug.Log("added tile: " + (z + 4 + mapHeight);
+                tileVisible[x - 4, y + 1] = true;
+                tileVisible[x - 5, y + 1] = true;
+                tileVisible[x - 4, y - 1] = true;
+                tileVisible[x - 5, y - 1] = true;
+            }
+        }
+
+
+        //tileVisible[tx * mapHeight + ty] = true;
+        //tileSeen[tx * mapHeight + ty] = true;
+    }
+         
+
+    void Render()
+    {
+        ResetEntities();
+        //Debug.Log("render");
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                //Debug.Log(x + ", " + y);
+                if (tileSeen[x, y])
+                {
+                    //Debug.Log(i + "seen");
+                    if (tileVisible[x, y])
+                    {
+                        if (tileIsWall[x, y])
+                        {
+                            tilemap.SetColor(new Vector3Int(x, y, 0), wallColorLit);
+                        }
+                        else
+                        {
+                            tilemap.SetColor(new Vector3Int(x, y, 0), floorColorLit);
+                        }
+
+                        foreach (GameObject entity in entities)
+                        {
+                            if (entity.transform.position.x == x && entity.transform.position.y == y)
+                            {
+                                entity.transform.position = new Vector3(x, y, -1);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (tileIsWall[x, y])
+                        {
+                            tilemap.SetColor(new Vector3Int(x, y, 0), wallColor);
+                        }
+                        else
+                        {
+                            tilemap.SetColor(new Vector3Int(x, y, 0), floorColor);
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+
+    void ResetEntities()
+    {
+        foreach (GameObject entity in entities)
+        {            
+            {                
+                entity.transform.position = new Vector3(entity.transform.position.x, entity.transform.position.y, 1);
+                //entity.GetComponentInChildren<SpriteRenderer>().color = Color.red;
+            }
+        }
+    }
+       
+
+    public void PlaceEntities(RectInt rectInt)
+    {
+        int numberOfMonsters = Random.Range(0, maxNumberOfMonstersPerRoom);
+
+        for (int i = 0; i < numberOfMonsters; i++)
+        {
+            int x = Random.Range(rectInt.x, rectInt.x + rectInt.width);
+            int y = Random.Range(rectInt.y, rectInt.y + rectInt.height);
+
+
+            {
+                if(Random.Range(0,100) < 20)
+                {
+                    engine.CreateEntity(x, y, 1, 1, new Color32(0, 80, 0, 255), "Orc");
+
+                }
+                else
+                {
+                    engine.CreateEntity(x, y, 1, 1, new Color32(0, 160, 0, 255), "Goblin");
+                }
+            }
+
+        }
+    }
+
+    public void LocateEntities()
+    {
+        foreach(GameObject entity in entities)
+        {
+            //
+        }
+    }
+
+    public float[,] tilesMap;
+    public GridScript grid;
+
+    void ConvertMap()
+    {
+        float[,] tilesMap = new float[mapWidth, mapHeight];
+        for  (int i = 0; i < mapWidth; i++)
+            {
+                for (int j = 0; j < mapHeight; j++)
+                {
+                if (tileIsWall[i, j]) tilesMap[i, j] = 0f;
+
+                else tilesMap[i, j] = 1f;
+            }
+                
+        }
+
+        grid = new GridScript(tilesMap);
+    }
+
+
+    #region Other FOV Attempts
     public void FOVRecompute()
     {        
         visibleWallTiles.Clear();
@@ -425,131 +723,6 @@ public class GameMap : MonoBehaviour
         visibleTiles.Add(new Vector3Int());
     }
 
-
-    float degToRad = Mathf.PI / 100;
-
-    int DiagDistance(int x, int y, int x1, int y1)
-    {
-        int dx = x1 - x;
-        int dy = y1 - y;
-        return  Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
-    }
-
-    public void FOV()
-    {
-        Debug.Log("FOV");
-        timer = new Stopwatch();
-        timer.Start();
-
-        visibleWallTiles.Clear();
-        visibleFloorTiles.Clear();
-
-        previousTiles.AddRange(recentTiles);
-
-        recentTiles.Clear();
-        tileVisible = new bool[5185];
-
-
-        int x = Mathf.RoundToInt(player.transform.position.x);
-        int y = Mathf.RoundToInt(player.transform.position.y);
-
-        for (int i = 0; i < 360; i++)//drop to every 3rd?
-        {
-            float deg = i * degToRad;
-
-            int endX = Mathf.RoundToInt(Mathf.Cos(deg) * fovRadius + x);
-            int endY = Mathf.RoundToInt(Mathf.Sin(deg) * fovRadius + y);
-
-            int d = DiagDistance(x, y, endX, endY);
-
-            for (int j = 0; j < d; j++)
-            {
-                int tx = Mathf.RoundToInt(Mathf.Lerp(x, endX, j / Mathf.Round(d)));
-                int ty = Mathf.RoundToInt(Mathf.Lerp(y, endY, j / Mathf.Round(d)));
-
-                if (tx < 0 || tx > mapWidth) { continue; }
-                if (ty < 0 || ty > mapWidth) { continue; }
-
-                if (tilemap.GetTile(new Vector3Int(tx, ty, 0)).name == "WallTile")
-                {
-                    //visibleWallTiles.Add(new Vector3Int(tx, ty, 0));
-                    //seenTiles.Add(new Vector3Int(tx, ty, 0));
-                    tileVisible[tx * mapHeight + ty] = true;
-                    tileSeen[tx * mapHeight + ty] = true;
-                    break;
-                }
-
-                //visibleFloorTiles.Add(new Vector3Int(x, y, 0));
-                //seenTiles.Add(new Vector3Int(tx, ty, 0));
-
-                tileVisible[tx * mapHeight + ty] = true;
-                tileSeen[tx * mapHeight + ty] = true;
-
-                recentTiles.Add(new Vector3Int(tx, ty, 0));
-            }
-        }
-
-        //RenderRecent();
-
-        timer.Stop();
-        //Debug.Log(timer.Elapsed);
-        previousTiles.Clear();
-
-        RayCastPostProcess();
-
-        Render();
-    }
-
-    void RayCastPostProcess()
-    {
-        int x = (int)player.transform.position.x;
-        int y = (int)player.transform.position.y;
-
-        int z = x * mapHeight + y;
-        Debug.Log("X:" + x + " Y:" + y + " Z:" + z + " W:" + mapWidth + " H:" + mapHeight);
-        
-        if (tileVisible[z + 1] == true && tileVisible[z + 2] == true && tileVisible[z + 3] == true)
-        {
-            //Debug.Log("added tile: " + (z + 4 + mapHeight);
-            tileVisible[z + 4 + mapHeight] = true;
-            tileVisible[z + 5 + mapHeight] = true;
-            tileVisible[z + 4 - mapHeight] = true;
-            tileVisible[z + 5 - mapHeight] = true;
-        }
-
-        if (tileVisible[z - 1] == true && tileVisible[z - 2] == true && tileVisible[z - 3] == true)
-        {
-            //Debug.Log("added tile: " + (z + 4 + mapHeight);
-            tileVisible[z - 4 + mapHeight] = true;
-            tileVisible[z - 5 + mapHeight] = true;
-            tileVisible[z - 4 - mapHeight] = true;
-            tileVisible[z - 5 - mapHeight] = true;
-        }
-
-        if (tileVisible[z + mapHeight] == true && tileVisible[z + 2 * mapHeight] == true && tileVisible[z + 3 * mapHeight] == true)
-        {
-            //Debug.Log("added tile: " + (z + 4 + mapHeight);
-            tileVisible[z + 4 * mapHeight + 1] = true;
-            tileVisible[z + 5 * mapHeight + 1] = true;
-            tileVisible[z + 4 * mapHeight - 1] = true;
-            tileVisible[z + 5 * mapHeight - 1] = true;
-        }
-
-        if (tileVisible[z - mapHeight] == true && tileVisible[z - 2 * mapHeight] == true && tileVisible[z - 3 * mapHeight] == true)
-        {
-            //Debug.Log("added tile: " + (z + 4 + mapHeight);
-            tileVisible[z - 4 * mapHeight + 1] = true;
-            tileVisible[z - 5 * mapHeight + 1] = true;
-            tileVisible[z - 4 * mapHeight - 1] = true;
-            tileVisible[z - 5 * mapHeight - 1] = true;
-        }
-
-        //tileVisible[tx * mapHeight + ty] = true;
-        //tileSeen[tx * mapHeight + ty] = true;
-    }
-
-
-
     public int[,] mult = new int[,]
     {       
         { 1, 0, 0, -1, -1, 0, 0, 1 },
@@ -566,40 +739,6 @@ public class GameMap : MonoBehaviour
         //ComputeRecursiveShadowCast();
     }
 
-    void Render()
-    {
-        //Debug.Log("render");
-        for (int i = 0; i < tileSeen.Length; i++)
-        {
-            //Debug.Log(i);
-            if (tileSeen[i])
-            {
-                //Debug.Log(i + "seen");
-                if(tileVisible[i])
-                {
-                    if(tileIsWall[i])
-                    {
-                        tilemap.SetColor(new Vector3Int(i/mapHeight, i%mapHeight, 0), wallColorLit);
-                    }
-                    else
-                    {
-                        tilemap.SetColor(new Vector3Int(i / mapHeight, i % mapHeight, 0), floorColorLit);
-                    }
-                }
-                else
-                {
-                    if (tileIsWall[i])
-                    {
-                        tilemap.SetColor(new Vector3Int(i / mapHeight, i % mapHeight, 0), wallColor);
-                    }
-                    else
-                    {
-                        tilemap.SetColor(new Vector3Int(i / mapHeight, i % mapHeight, 0), floorColor);
-                    }
-                }
-            }
-        }
-    }
 
     public List<Vector2> VisiblePoints;
     List<int> VisibleOctants = new List<int>() { 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -961,5 +1100,6 @@ public class GameMap : MonoBehaviour
         VisiblePoints.Add(new Vector2(x, y));
     }
 
+    #endregion
 
 }
