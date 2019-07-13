@@ -6,7 +6,6 @@ using UnityEngine.Tilemaps;
 using System.Diagnostics;
 using Debug = UnityEngine.Debug;
 
-using NesScripts.Controls.PathFind;
 
 public class GameMap : MonoBehaviour
 {
@@ -15,9 +14,7 @@ public class GameMap : MonoBehaviour
 
     [SerializeField] Tilemap tilemap;
     [SerializeField] Engine engine;
-
-    public Vector2Int botLeft;
-    public Vector2Int size;
+    [SerializeField] Grid2 grid2;
 
     [Tooltip("Needs to be multiple of 2")]
     public int mapWidth = 90;//need to be multiples of 2
@@ -34,10 +31,12 @@ public class GameMap : MonoBehaviour
     public bool fovLightWalls = true;
     public int fovRadius = 8;
 
-    bool fovRecompute = true;
+    //bool fovRecompute = true;
 
-    [SerializeField] TileBase wallTiles;
-    [SerializeField] TileBase floorTiles;
+    public bool debugShowAllTiles = false;
+
+    [SerializeField] TileBase wallTiles = null;
+    [SerializeField] TileBase floorTiles = null;
 
     public Color wallColor;
     public Color wallColorLit;
@@ -51,6 +50,9 @@ public class GameMap : MonoBehaviour
 
     public GameObject player;
 
+
+    //clean up needed...
+    /*
     List<Vector3Int> seenTiles = new List<Vector3Int>();
     List<Vector3Int> recentTiles = new List<Vector3Int>();
     List<Vector3Int> previousTiles = new List<Vector3Int>();
@@ -58,19 +60,23 @@ public class GameMap : MonoBehaviour
     List<Vector3Int> visibleFloorTiles = new List<Vector3Int>();
     List<Vector3Int> visibleWallTiles = new List<Vector3Int>();
     List<Vector3Int> visibleTiles = new List<Vector3Int>();
+    */
 
-    int numOfTiles;
+    //int numOfTiles;
 
     //List<bool> tileSeen = new List<bool>(4500); //remove hard code?
     //List<bool> tileVisible = new List<bool>(4500);
     //List<bool> tileIsWall = new List<bool>(4500);
 
 
-    bool[,] tileSeen = new bool[96, 54];
-    bool[,] tileVisible = new bool[96, 54];
-    public bool[,] tileIsWall = new bool[96, 54];
+    Cell[,] grid;
+    public List<Cell> path;
 
-    bool [,] hasEntity = new bool [96, 54];
+    bool[,] tileSeen = new bool[76, 40];
+    public bool[,] tileVisible = new bool[76, 40];
+    public bool[,] tileIsWall = new bool[76, 40];
+
+    bool [,] hasEntity = new bool [76, 40];
     //bool is item
 
     public List<GameObject> entities = new List<GameObject>();
@@ -79,11 +85,13 @@ public class GameMap : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        tilemap = FindObjectOfType<Tilemap>();
         engine = FindObjectOfType<Engine>();
+        grid2 = FindObjectOfType<Grid2>();
         //set camera size from width & height?
         //PlaceTile();        
         FillMap();
-        numOfTiles = mapHeight * mapWidth;
+        //numOfTiles = mapHeight * mapWidth;
         //MakeMap();
         //r = new RectInt(botLeft, size);
         //CreateRoom(r);        
@@ -106,7 +114,15 @@ public class GameMap : MonoBehaviour
         }
         if (Input.GetKeyDown(KeyCode.Q))
         {
-            engine.CreateEntity((int)player.transform.position.x + 1, (int)player.transform.position.y + 1, -1 , 1, new Color32(255, 0, 0, 255), "AI", false, true);
+            //engine.CreateEntity((int)player.transform.position.x + 2, (int)player.transform.position.y + 2, -1 , 1, new Color32(255, 0, 0, 255), "AI");
+            //CreateGrid();
+            
+        }
+        if(debugShowAllTiles)
+        {
+            ShowAllTiles();
+            Render();
+            //debugShowAllTiles = false;
         }
     }
 
@@ -124,16 +140,73 @@ public class GameMap : MonoBehaviour
 
     void FillMap()
     {
-        for (int i = 0; i < mapWidth; i++)
+        for (int x = 0; x < mapWidth; x++)
         {
-            for (int j = 0; j < mapHeight; j++)
+            for (int y = 0; y < mapHeight; y++)
             {
-                PlaceTile(i, j, wallTiles);
+                PlaceTile(x, y, wallTiles);
                 //Debug.Log(i * mapHeight + j);
-                tileIsWall[i, j] = true;
+                tileIsWall[x, y] = true; 
             }
         }
     }
+
+    void ShowAllTiles()
+    {
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                tileSeen[x, y] = true;
+                tileVisible[x, y] = true;
+            }
+        }
+    }
+
+    void CreateGrid()
+    {
+        timer = new Stopwatch();
+        timer.Start();
+
+        grid = new Cell[mapWidth, mapHeight];
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                bool walkable = !tileIsWall[x, y];
+                Vector3 worldPoint = new Vector3(x, y, 0);
+                //Debug.Log(worldPoint);
+                grid[x, y] = new Cell(walkable, worldPoint, x, y);
+                //Debug.Log(grid[x, y].gridX + ", " + grid[x, y].gridY);
+            }
+        }
+
+        timer.Stop();
+        Debug.Log("Creating grid took:" + timer.Elapsed);
+    }
+
+    /*void OnDrawGizmos()
+    {
+        //timer = new Stopwatch();
+        //timer.Start();
+
+        Gizmos.DrawWireCube(new Vector3(mapWidth/2, mapHeight/2, 0), new Vector3(mapWidth, mapHeight, 1));
+
+        if (grid != null)
+        {
+            foreach (Cell n in grid)
+            {
+                Gizmos.color = (n.walkable) ? new Color(1,1,1,.3f) : new Color(1,0,0,.3f);
+                if (path != null)
+                    if (path.Contains(n))
+                        Gizmos.color = new Color(0,0,0,.3f);
+                Gizmos.DrawCube(new Vector3(n.worldPosition.x +.5f, n.worldPosition.y + .5f,0), Vector3.one * (.9f));
+            }
+        }
+
+        //timer.Stop();
+        //Debug.Log("Creating gizmos took:" + timer.Elapsed);
+    }*/
 
     void MakeMap()
     {
@@ -182,7 +255,8 @@ public class GameMap : MonoBehaviour
 
                 if (numberOfRooms == 0)
                 {
-                    engine.CreateEntity(newX, newY, -1, 0, new Color32(0, 135, 255, 255), "Player");
+                    //engine.CreateEntity(newX, newY, -1, 0, new Color32(0, 135, 255, 255), "Player");
+                    engine.CreatePlayer(newX,newY, -1);
                     player = GameObject.Find("Player");
                     //if(player == null)
                     //{
@@ -217,7 +291,7 @@ public class GameMap : MonoBehaviour
                     }
                 }
 
-                PlaceEntities(newRoomInt);
+                //PlaceEntities(newRoomInt);
 
                 rooms.Add(newRoom);
                 numberOfRooms++;
@@ -228,22 +302,24 @@ public class GameMap : MonoBehaviour
         Debug.Log("Creating map took:" + timer.Elapsed);
         //FOVRecompute();
         FOV();
+        grid2.CreateGrid();
         //GetVisibleCells();
     }
     
 
     void CreateRoom(RectInt rectInt)
     {
-        for (int i = rectInt.xMin; i < rectInt.xMax; i++)
+        for (int x = rectInt.xMin; x < rectInt.xMax; x++)
         {
-            for (int j = rectInt.yMin; j < rectInt.yMax; j++)
+            for (int y = rectInt.yMin; y < rectInt.yMax; y++)
             {
-                PlaceTile(i, j, floorTiles);
-                tileIsWall[i, j] = false;
+                PlaceTile(x, y, floorTiles);
+                tileIsWall[x, y] = false;
+                //grid[x, y] = new Cell(true, new Vector3(x, y, 0), x, y);
                 //StartCoroutine(PlaceTileWithDelay(i, j, floorTiles));
             }
         }
-        //PlaceEntities(rectInt);
+        PlaceEntities(rectInt);
     }
     void CreateHorizontalTunnel(int x1, int x2, int y)
     {
@@ -251,6 +327,7 @@ public class GameMap : MonoBehaviour
         {
             PlaceTile(x, y, floorTiles);
             tileIsWall[x, y] = false;
+            //grid[x, y] = new Cell(true, new Vector3(x, y, 0), x, y);
             //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
         }
     }
@@ -261,6 +338,7 @@ public class GameMap : MonoBehaviour
         {
             PlaceTile(x, y, floorTiles);
             tileIsWall[x, y] = false;
+            //grid[x, y] = new Cell(true, new Vector3(x, y, 0), x, y);
 
             //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
         }
@@ -318,12 +396,12 @@ public class GameMap : MonoBehaviour
         timer = new Stopwatch();
         timer.Start();
 
-        visibleWallTiles.Clear();
-        visibleFloorTiles.Clear();
+        //visibleWallTiles.Clear();
+        //visibleFloorTiles.Clear();
 
-        previousTiles.AddRange(recentTiles);
+        //previousTiles.AddRange(recentTiles);
 
-        recentTiles.Clear();
+        //recentTiles.Clear();
         //tileVisible = new bool[5185];
 
 
@@ -362,7 +440,7 @@ public class GameMap : MonoBehaviour
                 tileVisible[tx, ty] = true;
                 tileSeen[tx, ty] = true;
 
-                recentTiles.Add(new Vector3Int(tx, ty, 0));
+                //recentTiles.Add(new Vector3Int(tx, ty, 0));
             }
         }
 
@@ -370,7 +448,7 @@ public class GameMap : MonoBehaviour
 
         timer.Stop();
         //Debug.Log("Rendering took:" + timer.Elapsed);
-        previousTiles.Clear();
+        //previousTiles.Clear();
 
         RayCastPostProcess();
 
@@ -462,7 +540,7 @@ public class GameMap : MonoBehaviour
 
     void Render()
     {
-        ResetEntities();
+        ResetEntitiesRender();
         //Debug.Log("render");
         for (int x = 0; x < mapWidth; x++)
         {
@@ -508,11 +586,12 @@ public class GameMap : MonoBehaviour
         }
     }
 
-    void ResetEntities()
+    void ResetEntitiesRender()
     {
         foreach (GameObject entity in entities)
         {            
-            {                
+            {   
+                //moved entities to z = 1 to remove from camera
                 entity.transform.position = new Vector3(entity.transform.position.x, entity.transform.position.y, 1);
                 //entity.GetComponentInChildren<SpriteRenderer>().color = Color.red;
             }
@@ -553,28 +632,67 @@ public class GameMap : MonoBehaviour
         }
     }
 
-    public float[,] tilesMap;
-    public GridScript grid;
 
-    void ConvertMap()
+    public void ShowMap()
     {
-        float[,] tilesMap = new float[mapWidth, mapHeight];
-        for  (int i = 0; i < mapWidth; i++)
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
             {
-                for (int j = 0; j < mapHeight; j++)
+                if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "FloorTile")
                 {
-                if (tileIsWall[i, j]) tilesMap[i, j] = 0f;
+                    tilemap.SetColor(new Vector3Int(x, y, 0), floorColor);
 
-                else tilesMap[i, j] = 1f;
+                }
+                else
+                {
+                    tilemap.SetColor(new Vector3Int(x, y, 0), wallColor);
+                }
             }
-                
         }
-
-        grid = new GridScript(tilesMap);
     }
 
+    public List<Cell> neighbors = new List<Cell>();
+    public List<Vector2> neighbours = new List<Vector2>();
+
+    public List<Cell> GetNeighbors(Cell cell)
+    {
+        neighbors = new List<Cell>();
+        neighbours = new List<Vector2>();
+
+        for (int x = -1; x <= 1; x++)
+        {
+            for (int y = -1; y <= 1; y++)
+            {
+                if (x == 0 && y == 0)
+                {
+                    continue;
+                }
+
+                int checkX = cell.gridX + x;
+                int checkY = cell.gridY + y;
+
+                if (checkX >= 0 && checkX < mapWidth && checkY >= 0 && checkY < mapHeight)
+                {
+                    neighbors.Add(grid[checkX, checkY]);
+                    neighbours.Add(new Vector2(checkX, checkY));
+                }
+            }
+        }
+        return neighbors;
+    }
+
+    public Cell CellFromWorldPoint(Vector3 worldPosition)
+    {
+        int x = (int)worldPosition.x;
+        int y = (int)worldPosition.y;
+        return grid[x, y];
+    }
 
     #region Other FOV Attempts
+
+
+    /*
     public void FOVRecompute()
     {        
         visibleWallTiles.Clear();
@@ -697,25 +815,6 @@ public class GameMap : MonoBehaviour
         previousTiles.Clear();
     }
 
-    public void ShowMap()
-    {
-        for (int x = 0; x < mapWidth; x++)
-        {
-            for (int y = 0; y < mapHeight; y++)
-            {            
-                if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "FloorTile")
-                {
-                    tilemap.SetColor(new Vector3Int(x, y, 0), floorColor);
-
-                }
-                else
-                {
-                    tilemap.SetColor(new Vector3Int(x, y, 0), wallColor);
-                }
-            }
-        }
-    }
-
     
     public void Compute(Vector3Int origin, int rangeLimit)
     {
@@ -774,332 +873,333 @@ public class GameMap : MonoBehaviour
                 Debug.Log(GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y));
                 Debug.Log(visRange2);
                 */
+    /*
 
-                while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, false) >= pEndSlope)
-                {
-                    if(GetVisDistance(x,y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
-                    {
-                        if(tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
-                        {
-                            Debug.Log("wall");
-                            if (x - 1 >= 0 && tilemap.GetTile(new Vector3Int(x - 1, y, 0)).name != "WallTile")
-                            {
-                                Debug.Log("floor");
-                                ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x - 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false));
-                            }
-                        }
-                        else
-                        {
-                            if(x - 1 >= 0 && tilemap.GetTile(new Vector3Int(x - 1, y, 0)).name == "WallTile")
-                            {
-                                pStartSlope = GetSlope(x - 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false);
-
-                                VisiblePoints.Add(new Vector2(x, y));
-                            }
-                        }
-                    }
-                    x++;
-                }
-                x--;
-                break;
-
-
-            case 2: //nne
-                y = Mathf.RoundToInt(player.transform.position.y) - pDepth;
-                if (y < 0) return;
-
-                x = Mathf.RoundToInt(player.transform.position.x) + (int)pStartSlope * pDepth;
-                if (x >= mapWidth) x = mapWidth - 1;
-
-                while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, false) <= pEndSlope)
-                {
-                    if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
-                    {
-                        if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
-                        {
-                            if (x + 1 < mapWidth && tilemap.GetTile(new Vector3Int(x + 1, y, 0)).name != "WallTile")
-                            {
-                                ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x + 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false));
-                            }
-                        }
-                        else
-                        {
-                            if (x + 1 < mapWidth && tilemap.GetTile(new Vector3Int(x + 1, y, 0)).name == "WallTile")
-                            {
-                                pStartSlope = -GetSlope(x + 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false);
-
-                                VisiblePoints.Add(new Vector2(x, y));
-                            }
-                        }
-                    }
-                    x--;
-                }
-                x++;
-                break;
-
-
-            case 3: 
-                x = Mathf.RoundToInt(player.transform.position.x) + pDepth;
-                if (x >= mapWidth) return;
-
-                y = Mathf.RoundToInt(player.transform.position.y) - (int)pStartSlope * pDepth;
-                if (y < 0) y = 0;
-
-                while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, true) <= pEndSlope)
-                {
-                    if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
-                    {
-                        if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
-                        {
-                            if (y - 1 >= 0 && tilemap.GetTile(new Vector3Int(x, y - 1, 0)).name != "WallTile")
-                            {
-                                ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x - 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true));
-                            }
-                        }
-                        else
-                        {
-                            if (y - 1 >= 0 && tilemap.GetTile(new Vector3Int(x, y - 1, 0)).name == "WallTile")
-                            {
-                                pStartSlope = -GetSlope(x + 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true);
-
-                                VisiblePoints.Add(new Vector2(x, y));
-                            }
-                        }
-                    }
-                    y++;
-                }
-                y--;
-                break;
-
-
-            case 4:
-                x = Mathf.RoundToInt(player.transform.position.x) + pDepth;
-                if (x >= mapWidth) return;
-
-                y = Mathf.RoundToInt(player.transform.position.y) + (int)pStartSlope * pDepth;
-                if (y >= mapHeight) y = mapHeight - 1;
-
-                while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, true) >= pEndSlope)
-                {
-                    if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
-                    {
-                        if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
-                        {
-                            if (y + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y + 1, 0)).name != "WallTile")
-                            {
-                                ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x - 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true));
-                            }
-                        }
-                        else
-                        {
-                            if (y + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y + 1, 0)).name == "WallTile")
-                            {
-                                pStartSlope = GetSlope(x + 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true);
-
-                                VisiblePoints.Add(new Vector2(x, y));
-                            }
-                        }
-                    }
-                    y--;
-                }
-                y++;
-                break;
-
-
-            case 5:
-                y = Mathf.RoundToInt(player.transform.position.y) + pDepth;
-                if (y >= mapHeight) return;
-
-                x = Mathf.RoundToInt(player.transform.position.x) + (int)pStartSlope * pDepth;
-                if (x >= mapWidth) x = mapWidth - 1;
-
-                while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, false) >= pEndSlope)
-                {
-                    if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
-                    {
-                        if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
-                        {
-                            if (x + 1 < mapWidth && tilemap.GetTile(new Vector3Int(x + 1, y, 0)).name != "WallTile")
-                            {
-                                ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x + 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false));
-                            }
-                        }
-                        else
-                        {
-                            if (x + 1 < mapWidth && tilemap.GetTile(new Vector3Int(x + 1, y, 0)).name == "WallTile")
-                            {
-                                pStartSlope = GetSlope(x + 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false);
-
-                                VisiblePoints.Add(new Vector2(x, y));
-                            }
-                        }
-                    }
-                    x--;
-                }
-                x++;
-                break;
-
-
-            case 6:
-                y = Mathf.RoundToInt(player.transform.position.y) + pDepth;
-                if (y >= mapHeight) return;
-
-                x = Mathf.RoundToInt(player.transform.position.x) - (int)pStartSlope * pDepth;
-                if (x < 0 ) x = 0;
-
-                while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, false) <= pEndSlope)
-                {
-                    if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
-                    {
-                        if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
-                        {
-                            if (x - 1 >= 0 && tilemap.GetTile(new Vector3Int(x - 1, y, 0)).name != "WallTile")
-                            {
-                                ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x - 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false));
-                            }
-                        }
-                        else
-                        {
-                            if (x - 1 >= 0 && tilemap.GetTile(new Vector3Int(x - 1, y, 0)).name == "WallTile")
-                            {
-                                pStartSlope = -GetSlope(x - 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false);
-
-                                VisiblePoints.Add(new Vector2(x, y));
-                            }
-                        }
-                    }
-                    x++;
-                }
-                x--;
-                break;
-
-
-            case 7:
-                x = Mathf.RoundToInt(player.transform.position.x) - pDepth;
-                if (x < 0) return;
-
-                y = Mathf.RoundToInt(player.transform.position.y) + (int)pStartSlope * pDepth;
-                if (y >= mapHeight) y = mapHeight - 1;
-
-                while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, true) <= pEndSlope)
-                {
-                    if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
-                    {
-                        if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
-                        {
-                            if (y + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y + 1, 0)).name != "WallTile")
-                            {
-                                ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x + 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true));
-                            }
-                        }
-                        else
-                        {
-                            if (y + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y + 1, 0)).name == "WallTile")
-                            {
-                                pStartSlope = GetSlope(x - 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true);
-
-                                VisiblePoints.Add(new Vector2(x, y));
-                            }
-                        }
-                    }
-                    y--;
-                }
-                y++;
-                break;
-
-
-            case 8:
-                x = Mathf.RoundToInt(player.transform.position.x) - pDepth;
-                if (x < 0) return;
-
-                y = Mathf.RoundToInt(player.transform.position.y) - (int)pStartSlope * pDepth;
-                if (y < 0) y = 0;
-
-                while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, true) >= pEndSlope)
-                {
-                    if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
-                    {
-                        if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
-                        {
-                            if (y - 1 >= 0 && tilemap.GetTile(new Vector3Int(x, y - 1, 0)).name != "WallTile")
-                            {
-                                ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x + 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true));
-                            }
-                        }
-                        else
-                        {
-                            if (x + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y - 1, 0)).name == "WallTile")
-                            {
-                                pStartSlope = GetSlope(x - 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true);
-
-                                VisiblePoints.Add(new Vector2(x, y));
-                            }
-                        }
-                    }
-                    y++;
-                }
-                y--;
-                break;
-        }
-
-        if (x < 0)
-        {
-            x = 0;
-        }
-        else if (x >= mapWidth)
-        {
-            x = mapWidth - 1;
-        }
-
-        if (y < 0)
-        {
-            y = 0;
-        }
-        else if(y >= mapHeight)
-        {
-            y = mapHeight - 1;
-        }
-
-        if (pDepth < fovRadius & tilemap.GetTile(new Vector3Int(x, y, 0)).name != "WallTile")
-        {
-            ScanOctant(pDepth + 1, pOctant, pStartSlope, pEndSlope);
-        }
-        Render2();
-    }
-
-    double GetSlope(double pX1, double pY1, double pX2, double pY2, bool pInvert)
+while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, false) >= pEndSlope)
+{
+if(GetVisDistance(x,y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
+{
+if(tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
+{
+    Debug.Log("wall");
+    if (x - 1 >= 0 && tilemap.GetTile(new Vector3Int(x - 1, y, 0)).name != "WallTile")
     {
-        if (pInvert)
-            return (pY1 - pY2) / (pX1 - pX2);
-        else
-            return (pX1 - pX2) / (pY1 - pY2);    
+        Debug.Log("floor");
+        ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x - 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false));
     }
-
-    int GetVisDistance(int pX1, int pY1, int pX2, int pY2)
+}
+else
+{
+    if(x - 1 >= 0 && tilemap.GetTile(new Vector3Int(x - 1, y, 0)).name == "WallTile")
     {
-        return ((pX1 - pX2) * (pX1 - pX2)) + ((pY1 - pY2) * (pY1 - pY2));
-    }
+        pStartSlope = GetSlope(x - 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false);
 
-    public void Render2()
-    {
-        foreach (Vector2 item in VisiblePoints)
-        {
-            if (tilemap.GetTile(new Vector3Int((int)item.x, (int)item.y, 0)).name == "WallTile")
-            {
-                tilemap.SetColor(new Vector3Int((int)item.x, (int)item.y, 0), wallColorLit);
-            }
-            else
-            {
-                tilemap.SetColor(new Vector3Int((int)item.x, (int)item.y, 0), floorColorLit);
-            }
-        }
-    }
-
-    public void AddLit(int x, int y)
-    {
         VisiblePoints.Add(new Vector2(x, y));
     }
+}
+}
+x++;
+}
+x--;
+break;
 
+
+case 2: //nne
+y = Mathf.RoundToInt(player.transform.position.y) - pDepth;
+if (y < 0) return;
+
+x = Mathf.RoundToInt(player.transform.position.x) + (int)pStartSlope * pDepth;
+if (x >= mapWidth) x = mapWidth - 1;
+
+while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, false) <= pEndSlope)
+{
+if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
+{
+if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
+{
+    if (x + 1 < mapWidth && tilemap.GetTile(new Vector3Int(x + 1, y, 0)).name != "WallTile")
+    {
+        ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x + 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false));
+    }
+}
+else
+{
+    if (x + 1 < mapWidth && tilemap.GetTile(new Vector3Int(x + 1, y, 0)).name == "WallTile")
+    {
+        pStartSlope = -GetSlope(x + 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false);
+
+        VisiblePoints.Add(new Vector2(x, y));
+    }
+}
+}
+x--;
+}
+x++;
+break;
+
+
+case 3: 
+x = Mathf.RoundToInt(player.transform.position.x) + pDepth;
+if (x >= mapWidth) return;
+
+y = Mathf.RoundToInt(player.transform.position.y) - (int)pStartSlope * pDepth;
+if (y < 0) y = 0;
+
+while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, true) <= pEndSlope)
+{
+if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
+{
+if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
+{
+    if (y - 1 >= 0 && tilemap.GetTile(new Vector3Int(x, y - 1, 0)).name != "WallTile")
+    {
+        ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x - 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true));
+    }
+}
+else
+{
+    if (y - 1 >= 0 && tilemap.GetTile(new Vector3Int(x, y - 1, 0)).name == "WallTile")
+    {
+        pStartSlope = -GetSlope(x + 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true);
+
+        VisiblePoints.Add(new Vector2(x, y));
+    }
+}
+}
+y++;
+}
+y--;
+break;
+
+
+case 4:
+x = Mathf.RoundToInt(player.transform.position.x) + pDepth;
+if (x >= mapWidth) return;
+
+y = Mathf.RoundToInt(player.transform.position.y) + (int)pStartSlope * pDepth;
+if (y >= mapHeight) y = mapHeight - 1;
+
+while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, true) >= pEndSlope)
+{
+if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
+{
+if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
+{
+    if (y + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y + 1, 0)).name != "WallTile")
+    {
+        ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x - 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true));
+    }
+}
+else
+{
+    if (y + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y + 1, 0)).name == "WallTile")
+    {
+        pStartSlope = GetSlope(x + 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true);
+
+        VisiblePoints.Add(new Vector2(x, y));
+    }
+}
+}
+y--;
+}
+y++;
+break;
+
+
+case 5:
+y = Mathf.RoundToInt(player.transform.position.y) + pDepth;
+if (y >= mapHeight) return;
+
+x = Mathf.RoundToInt(player.transform.position.x) + (int)pStartSlope * pDepth;
+if (x >= mapWidth) x = mapWidth - 1;
+
+while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, false) >= pEndSlope)
+{
+if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
+{
+if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
+{
+    if (x + 1 < mapWidth && tilemap.GetTile(new Vector3Int(x + 1, y, 0)).name != "WallTile")
+    {
+        ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x + 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false));
+    }
+}
+else
+{
+    if (x + 1 < mapWidth && tilemap.GetTile(new Vector3Int(x + 1, y, 0)).name == "WallTile")
+    {
+        pStartSlope = GetSlope(x + 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false);
+
+        VisiblePoints.Add(new Vector2(x, y));
+    }
+}
+}
+x--;
+}
+x++;
+break;
+
+
+case 6:
+y = Mathf.RoundToInt(player.transform.position.y) + pDepth;
+if (y >= mapHeight) return;
+
+x = Mathf.RoundToInt(player.transform.position.x) - (int)pStartSlope * pDepth;
+if (x < 0 ) x = 0;
+
+while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, false) <= pEndSlope)
+{
+if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
+{
+if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
+{
+    if (x - 1 >= 0 && tilemap.GetTile(new Vector3Int(x - 1, y, 0)).name != "WallTile")
+    {
+        ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x - 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false));
+    }
+}
+else
+{
+    if (x - 1 >= 0 && tilemap.GetTile(new Vector3Int(x - 1, y, 0)).name == "WallTile")
+    {
+        pStartSlope = -GetSlope(x - 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, false);
+
+        VisiblePoints.Add(new Vector2(x, y));
+    }
+}
+}
+x++;
+}
+x--;
+break;
+
+
+case 7:
+x = Mathf.RoundToInt(player.transform.position.x) - pDepth;
+if (x < 0) return;
+
+y = Mathf.RoundToInt(player.transform.position.y) + (int)pStartSlope * pDepth;
+if (y >= mapHeight) y = mapHeight - 1;
+
+while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, true) <= pEndSlope)
+{
+if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
+{
+if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
+{
+    if (y + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y + 1, 0)).name != "WallTile")
+    {
+        ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x + 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true));
+    }
+}
+else
+{
+    if (y + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y + 1, 0)).name == "WallTile")
+    {
+        pStartSlope = GetSlope(x - 0.5, y + 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true);
+
+        VisiblePoints.Add(new Vector2(x, y));
+    }
+}
+}
+y--;
+}
+y++;
+break;
+
+
+case 8:
+x = Mathf.RoundToInt(player.transform.position.x) - pDepth;
+if (x < 0) return;
+
+y = Mathf.RoundToInt(player.transform.position.y) - (int)pStartSlope * pDepth;
+if (y < 0) y = 0;
+
+while (GetSlope(x, y, (double)player.transform.position.x, (double)player.transform.position.y, true) >= pEndSlope)
+{
+if (GetVisDistance(x, y, (int)player.transform.position.x, (int)player.transform.position.y) <= visRange2)
+{
+if (tilemap.GetTile(new Vector3Int(x, y, 0)).name == "WallTile")
+{
+    if (y - 1 >= 0 && tilemap.GetTile(new Vector3Int(x, y - 1, 0)).name != "WallTile")
+    {
+        ScanOctant(pDepth + 1, pOctant, pStartSlope, GetSlope(x + 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true));
+    }
+}
+else
+{
+    if (x + 1 < mapHeight && tilemap.GetTile(new Vector3Int(x, y - 1, 0)).name == "WallTile")
+    {
+        pStartSlope = GetSlope(x - 0.5, y - 0.5, (double)player.transform.position.x, (double)player.transform.position.y, true);
+
+        VisiblePoints.Add(new Vector2(x, y));
+    }
+}
+}
+y++;
+}
+y--;
+break;
+}
+
+if (x < 0)
+{
+x = 0;
+}
+else if (x >= mapWidth)
+{
+x = mapWidth - 1;
+}
+
+if (y < 0)
+{
+y = 0;
+}
+else if(y >= mapHeight)
+{
+y = mapHeight - 1;
+}
+
+if (pDepth < fovRadius & tilemap.GetTile(new Vector3Int(x, y, 0)).name != "WallTile")
+{
+ScanOctant(pDepth + 1, pOctant, pStartSlope, pEndSlope);
+}
+Render2();
+}
+
+double GetSlope(double pX1, double pY1, double pX2, double pY2, bool pInvert)
+{
+if (pInvert)
+return (pY1 - pY2) / (pX1 - pX2);
+else
+return (pX1 - pX2) / (pY1 - pY2);    
+}
+
+int GetVisDistance(int pX1, int pY1, int pX2, int pY2)
+{
+return ((pX1 - pX2) * (pX1 - pX2)) + ((pY1 - pY2) * (pY1 - pY2));
+}
+
+public void Render2()
+{
+foreach (Vector2 item in VisiblePoints)
+{
+if (tilemap.GetTile(new Vector3Int((int)item.x, (int)item.y, 0)).name == "WallTile")
+{
+tilemap.SetColor(new Vector3Int((int)item.x, (int)item.y, 0), wallColorLit);
+}
+else
+{
+tilemap.SetColor(new Vector3Int((int)item.x, (int)item.y, 0), floorColorLit);
+}
+}
+}
+
+public void AddLit(int x, int y)
+{
+VisiblePoints.Add(new Vector2(x, y));
+}
+*/
     #endregion
 
 }

@@ -5,10 +5,9 @@ using UnityEngine;
 
 public class Fighter : MonoBehaviour
 {
-    public int MaxHP { get; set; }
-    public int HP { get; set; }
+    public int MaxHP;
+    public int HP;
 
-    public int defense { get; set; }
-    public int power { get; set; }
-
+    public int defense;
+    public int power;
 }

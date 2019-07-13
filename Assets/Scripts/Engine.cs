@@ -4,16 +4,18 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-using NesScripts.Controls.PathFind;
 
 public class Engine : MonoBehaviour
-{   
+{
     [SerializeField] GameObject entityObject;
+    [SerializeField] GameObject playerObject;
     Entity entity;
     Entity playerEntity;
     //[SerializeField] GameObject player;
     [SerializeField] Tilemap tilemap;
-    GameMap gameMapObj;
+    GameMap gameMap;
+    Grid2 grid2;
+
 
     List<GameObject> entities;
 
@@ -30,8 +32,10 @@ public class Engine : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        gameMapObj = FindObjectOfType<GameMap>().GetComponent<GameMap>();
-        entities = gameMapObj.entities;
+        gameMap = FindObjectOfType<GameMap>().GetComponent<GameMap>();
+        grid2 = FindObjectOfType<Grid2>();
+        tilemap = FindObjectOfType<Tilemap>();
+        entities = gameMap.entities;
         //player = GameObject.Find("Player");
         //entity = player.GetComponent<Entity>();
 
@@ -41,13 +45,13 @@ public class Engine : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if(gameState == GameState.PlayerTurn)
+        if (gameState == GameState.PlayerTurn)
         {
             Movement();
         }
 
         //enemy turn test
-        if(gameState == GameState.EnemyTurn)
+        if (gameState == GameState.EnemyTurn)
         {
             EnemyTurn();
             if (Input.GetKeyDown(KeyCode.Space))
@@ -66,21 +70,25 @@ public class Engine : MonoBehaviour
         spriteRenderer.color = color;
         entityObject.name = name;
 
-        gameMapObj.entities.Add(entityObject);
+        gameMap.entities.Add(entityObject);
 
-        if(fighter)
+        if (fighter)
         {
             entityObject.AddComponent<Fighter>();
         }
         if (ai)
         {
-            
             entityObject.AddComponent<AI>();
         }
 
         //entity.entitySprite =  //list of sprites?
     }
 
+    public void CreatePlayer(int x, int y, int z)
+    {
+        playerObject = Instantiate(playerObject, new Vector3(x,y,z), Quaternion.identity);
+        playerObject.name = "Player";
+    }
     private void Movement()
     {
         //own script?
@@ -168,9 +176,53 @@ public class Engine : MonoBehaviour
             gameState = GameState.EnemyTurn;
 
             //gameMapObj.FOVRecompute();
-            gameMapObj.FOV();
+            gameMap.FOV();
             //gameMapObj.GetVisibleCells();
         }        
+    }
+
+    public void AttemptMove(Unit unit, Vector3 target)
+    {
+        //place entity in center of new cell
+        //target = new Vector3(target.x - .5f, target.y - .5f, target.z);
+
+        foreach (GameObject entity in entities)
+        {
+            if (entity.transform.position.x == target.x && entity.transform.position.y == target.y)
+            {
+                Debug.Log("You tickle the " + entity.name);// + " in the shin");
+                gameState = GameState.EnemyTurn;
+                return;
+            }
+        }
+
+        //StartCoroutine(MoveToNextSpot(unit, target));
+        MoveToNextSpot2(unit, target);
+
+    }
+
+    IEnumerator MoveToNextSpot(Unit unit, Vector3 target)
+    {
+        while(unit.transform.position != target)
+        {
+            
+
+            unit.transform.position = Vector3.MoveTowards(unit.transform.position, target, unit.speed * Time.deltaTime);
+            yield return null;
+
+
+            //entity.Move(dx, dy);
+            if(unit.transform.position == target)
+            {
+                //gameState = GameState.PlayerTurn;
+                yield break;
+            }
+        }
+    }
+
+    void MoveToNextSpot2(Unit unit, Vector3 target)
+    {
+        unit.transform.position = target;        
     }
 
     void EnemyTurn()
@@ -181,10 +233,36 @@ public class Engine : MonoBehaviour
             {
                 if (entity.GetComponent<AI>() != null)
                 {
-                    entity.GetComponent<AI>().MoveTowardsTarget(new Point((int)playerEntity.transform.position.x, (int)playerEntity.transform.position.y));
+                    entity.GetComponent<AI>().MoveTowardsPlayer();
                 }
 
-                Debug.Log("The " + entity + " ponders the meaning of life.");
+                //Debug.Log("The " + entity + " ponders the meaning of life.");
+
+
+                //if entity can see player
+                //finishing walking to last seen spot?
+
+                if(gameMap.tileVisible[(int)entity.transform.position.x, (int)entity.transform.position.y])
+                {
+                    if (entity.GetComponent<Unit>() != null)
+                    {
+                        List<Node> neighbors = grid2.GetNeighbours(new Node(true, entity.transform.position, (int)entity.transform.position.x, (int)entity.transform.position.y));
+                        foreach (Node neighbor in neighbors)
+                        {
+                            //Debug.Log("Player: " + playerObject.transform.position);
+                            //Debug.Log("Neighbor: " + neighbor.worldPosition);
+                            if(playerObject.transform.position == neighbor.worldPosition)
+                            {
+                                Debug.Log(entity + " attacks player");
+                                gameState = GameState.PlayerTurn;
+                                return;
+                            }
+                        }
+                        entity.GetComponent<Unit>().RequestPathForUnit();
+                    }
+                }
+                //else wander?
+
             }
         }
         gameState = GameState.PlayerTurn;

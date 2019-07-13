@@ -1,110 +1,59 @@
-﻿/**
- * Provide simple path-finding algorithm with tile prices support.
- * Based on code and tutorial by Sebastian Lague (https://www.youtube.com/channel/UCmtyQOKKmrMVaKuRXz02jbQ).
- *   
- * Author: Ronen Ness.
- * Since: 2016. 
-*/
+﻿using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
+using System;
 
-namespace NesScripts.Controls.PathFind
+public class Pathfinding : MonoBehaviour
 {
-    /// <summary>
-    /// Main class to find the best path to walk from A to B.
-    /// 
-    /// Usage example:
-    /// Grid grid = new Grid(width, height, tiles_costs);
-    /// List<Point> path = Pathfinding.FindPath(grid, from, to);
-    /// </summary>
-    public class Pathfinding
+
+    PathRequestManager requestManager;
+    Grid2 grid;
+
+    void Awake()
     {
-        /// <summary>
-        /// Different ways to calculate path distance.
-        /// </summary>
-		public enum DistanceType
+        requestManager = GetComponent<PathRequestManager>();
+        grid = GetComponent<Grid2>();
+    }
+
+
+    public void StartFindPath(Vector3 startPos, Vector3 targetPos)
+    {
+        StartCoroutine(FindPath(startPos, targetPos));
+    }
+
+    IEnumerator FindPath(Vector3 startPos, Vector3 targetPos)
+    {
+        Vector3[] waypoints = new Vector3[0];
+        bool pathSuccess = false;
+
+        Node startNode = grid.NodeFromWorldPoint(startPos);
+        Node targetNode = grid.NodeFromWorldPoint(targetPos);
+
+        if (startNode.walkable && targetNode.walkable)
         {
-            /// <summary>
-            /// The "ordinary" straight-line distance between two points.
-            /// </summary>
-			Euclidean,
-
-            /// <summary>
-            /// Distance without diagonals, only horizontal and/or vertical path lines.
-            /// </summary>
-			Manhattan
-        }
-
-        /// <summary>
-        /// Find a path between two points.
-        /// </summary>
-        /// <param name="grid">Grid to search.</param>
-        /// <param name="startPos">Starting position.</param>
-		/// <param name="targetPos">Ending position.</param>
-        /// <param name="distance">The type of distance, Euclidean or Manhattan.</param>
-        /// <param name="ignorePrices">If true, will ignore tile price (how much it "cost" to walk on).</param>
-        /// <returns>List of points that represent the path to walk.</returns>
-		public static List<Point> FindPath(GridScript grid, Point startPos, Point targetPos, DistanceType distance = DistanceType.Euclidean, bool ignorePrices = false)
-        {
-            // find path
-            List<Node> nodes_path = _ImpFindPath(grid, startPos, targetPos, distance, ignorePrices);
-
-            // convert to a list of points and return
-            List<Point> ret = new List<Point>();
-            if (nodes_path != null)
-            {
-                foreach (Node node in nodes_path)
-                {
-                    ret.Add(new Point(node.gridX, node.gridY));
-                }
-            }
-            return ret;
-        }
-
-        /// <summary>
-        /// Internal function that implements the path-finding algorithm.
-        /// </summary>
-        /// <param name="grid">Grid to search.</param>
-        /// <param name="startPos">Starting position.</param>
-        /// <param name="targetPos">Ending position.</param>
-        /// <param name="distance">The type of distance, Euclidean or Manhattan.</param>
-        /// <param name="ignorePrices">If true, will ignore tile price (how much it "cost" to walk on).</param>
-        /// <returns>List of grid nodes that represent the path to walk.</returns>
-        private static List<Node> _ImpFindPath(GridScript grid, Point startPos, Point targetPos, DistanceType distance = DistanceType.Euclidean, bool ignorePrices = false)
-        {
-            Node startNode = grid.nodes[startPos.x, startPos.y];
-            Node targetNode = grid.nodes[targetPos.x, targetPos.y];
-
-            List<Node> openSet = new List<Node>();
+            Heap<Node> openSet = new Heap<Node>(grid.MaxSize);
             HashSet<Node> closedSet = new HashSet<Node>();
             openSet.Add(startNode);
 
             while (openSet.Count > 0)
             {
-                Node currentNode = openSet[0];
-                for (int i = 1; i < openSet.Count; i++)
-                {
-                    if (openSet[i].fCost < currentNode.fCost || openSet[i].fCost == currentNode.fCost && openSet[i].hCost < currentNode.hCost)
-                    {
-                        currentNode = openSet[i];
-                    }
-                }
-
-                openSet.Remove(currentNode);
+                Node currentNode = openSet.RemoveFirst();
                 closedSet.Add(currentNode);
 
                 if (currentNode == targetNode)
                 {
-                    return RetracePath(grid, startNode, targetNode);
+                    pathSuccess = true;
+                    break;
                 }
 
-                foreach (Node neighbour in grid.GetNeighbours(currentNode, distance))
+                foreach (Node neighbour in grid.GetNeighbours(currentNode))
                 {
                     if (!neighbour.walkable || closedSet.Contains(neighbour))
                     {
                         continue;
                     }
 
-                    int newMovementCostToNeighbour = currentNode.gCost + GetDistance(currentNode, neighbour) * (ignorePrices ? 1 : (int)(10.0f * neighbour.price));
+                    int newMovementCostToNeighbour = currentNode.gCost + GetDistance(currentNode, neighbour);
                     if (newMovementCostToNeighbour < neighbour.gCost || !openSet.Contains(neighbour))
                     {
                         neighbour.gCost = newMovementCostToNeighbour;
@@ -113,48 +62,69 @@ namespace NesScripts.Controls.PathFind
 
                         if (!openSet.Contains(neighbour))
                             openSet.Add(neighbour);
+                        else
+                            openSet.UpdateItem(neighbour);
                     }
                 }
             }
-
-            return null;
         }
-
-        /// <summary>
-        /// Retrace path between two points.
-        /// </summary>
-        /// <param name="grid">Grid to work on.</param>
-        /// <param name="startNode">Starting node.</param>
-        /// <param name="endNode">Ending (target) node.</param>
-        /// <returns>Retraced path between nodes.</returns>
-        private static List<Node> RetracePath(GridScript grid, Node startNode, Node endNode)
+        yield return null;
+        if (pathSuccess)
         {
-            List<Node> path = new List<Node>();
-            Node currentNode = endNode;
-
-            while (currentNode != startNode)
-            {
-                path.Add(currentNode);
-                currentNode = currentNode.parent;
-            }
-            path.Reverse();
-            return path;
+            waypoints = RetracePath(startNode, targetNode);
         }
-
-        /// <summary>
-        /// Get distance between two nodes.
-        /// </summary>
-        /// <param name="nodeA">First node.</param>
-        /// <param name="nodeB">Second node.</param>
-        /// <returns>Distance between nodes.</returns>
-        private static int GetDistance(Node nodeA, Node nodeB)
-        {
-            int dstX = System.Math.Abs(nodeA.gridX - nodeB.gridX);
-            int dstY = System.Math.Abs(nodeA.gridY - nodeB.gridY);
-            return (dstX > dstY) ?
-                14 * dstY + 10 * (dstX - dstY) :
-                14 * dstX + 10 * (dstY - dstX);
-        }
+        requestManager.FinishedProcessingPath(waypoints, pathSuccess);
     }
 
+    Vector3[] RetracePath(Node startNode, Node endNode)
+    {
+        List<Node> path = new List<Node>();
+        Node currentNode = endNode;
+
+        while (currentNode != startNode)
+        {
+            path.Add(currentNode);
+            currentNode = currentNode.parent;
+        }
+        //Vector3[] waypoints = SimplifyPath(path);
+        List<Vector3> waypointsList = new List<Vector3>();
+
+        for (int i = 1; i < path.Count; i++)
+        {
+             waypointsList.Add(path[i].worldPosition);
+        }
+
+        Vector3[] waypoints = waypointsList.ToArray();
+
+        Array.Reverse(waypoints);
+        return waypoints;
+
+    }
+
+    Vector3[] SimplifyPath(List<Node> path)
+    {
+        List<Vector3> waypoints = new List<Vector3>();
+        Vector2 directionOld = Vector2.zero;
+
+        for (int i = 1; i < path.Count; i++)
+        {
+            Vector2 directionNew = new Vector2(path[i - 1].gridX - path[i].gridX, path[i - 1].gridY - path[i].gridY);
+            if (directionNew != directionOld)
+            {
+                waypoints.Add(path[i].worldPosition);
+            }
+            directionOld = directionNew;
+        }
+        return waypoints.ToArray();
+    }
+
+    int GetDistance(Node nodeA, Node nodeB)
+    {
+        int dstX = Mathf.Abs(nodeA.gridX - nodeB.gridX);
+        int dstY = Mathf.Abs(nodeA.gridY - nodeB.gridY);
+
+        if (dstX > dstY)
+            return 14 * dstY + 10 * (dstX - dstY);
+        return 14 * dstX + 10 * (dstY - dstX);
+    }
 }

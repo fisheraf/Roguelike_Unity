@@ -21,12 +21,15 @@ public class Entity : MonoBehaviour
         //spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         //gameObject.name = entityName;
         //spriteRenderer.sprite = entitySprites[0];
+
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        position.x = transform.position.x;
+        position.y = transform.position.y;
+
     }
 
     public void Move(int dx, int dy)
