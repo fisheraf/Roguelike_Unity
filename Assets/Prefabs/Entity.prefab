@@ -50,9 +50,12 @@ MonoBehaviour:
   position: {x: 0, y: 0}
   entitySprites:
   - {fileID: 21300000, guid: fc65cd397c559074980a7a0fa341c85d, type: 3}
+  - {fileID: 21300000, guid: 498e1173d82e6ec45a914c9a1ecc8692, type: 3}
   - {fileID: 21300000, guid: c8c1e61ce629fdc4880e1c6da017f572, type: 3}
   fighter: {fileID: 0}
   ai: {fileID: 0}
+  hasActed: 1
+  isDead: 0
 --- !u!114 &5108155153216561402
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -65,6 +68,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 679f0566edacf874ba869b3f06bfb647, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  MaxHP: 0
+  HP: 0
+  defense: 0
+  power: 0
 --- !u!114 &6743353827034941980
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -92,6 +99,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 0}
+  speed: 1
 --- !u!1 &8796285168140415334
 GameObject:
   m_ObjectHideFlags: 0

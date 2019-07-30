@@ -37,6 +37,7 @@ public class Grid2 : MonoBehaviour
 
     public void CreateGrid()
     {
+        gameMap.UpdateWalkable();
         grid = new Node[gridSizeX, gridSizeY];
         //Vector3 worldBottomLeft = transform.position - Vector3.right * gridWorldSize.x / 2 - Vector3.up * gridWorldSize.y / 2;
         Vector3 worldBottomLeft = new Vector3(0,0,-1f);// new Vector3(.5f,.5f,0);
@@ -48,7 +49,7 @@ public class Grid2 : MonoBehaviour
                 //Vector3 worldPoint = worldBottomLeft + (Vector3.right * (x * nodeDiameter + nodeRadius) + Vector3.up * (y * nodeDiameter + nodeRadius));
                 Vector3 worldPoint = worldBottomLeft + ((Vector3.right * x) + (Vector3.up * y));
                 //bool walkable = !(Physics.CheckSphere(worldPoint, nodeRadius, unwalkableMask));
-                bool walkable = !gameMap.tileIsWall[x, y];
+                bool walkable = gameMap.isWalkable[x, y];//!gameMap.tileIsWall[x, y];// || gameMap.hasEntity[x,y]; //or is entity
                 grid[x, y] = new Node(walkable, worldPoint, x, y);
             }
         }
@@ -104,7 +105,7 @@ public class Grid2 : MonoBehaviour
         {
             foreach (Node n in grid)
             {
-                Gizmos.color = (n.walkable) ? new Color(1, 1, 1, .2f) : new Color(1, 0, 0, .2f);
+                Gizmos.color = (n.walkable) ? new Color(.5f, .5f, 1, .2f) : new Color(1, 0, 0, .2f);
 
                 //draws from center, have to adjust position
                 Gizmos.DrawCube(new Vector3(n.worldPosition.x + .5f, n.worldPosition.y + .5f, n.worldPosition.z), Vector3.one * (nodeDiameter - .1f));

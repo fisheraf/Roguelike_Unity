@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 8796285166437535127}
   - component: {fileID: 5108155153216561402}
-  - component: {fileID: 6743353827034941980}
   - component: {fileID: 4274501268246123384}
   - component: {fileID: 2154118805519598819}
+  - component: {fileID: 1593930518984937346}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -47,20 +47,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 679f0566edacf874ba869b3f06bfb647, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &6743353827034941980
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8796285166437535144}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 73014d80211376747a5d1d072bb88cd0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  path: []
-  path2: []
+  MaxHP: 100
+  bonusMaxHP: 0
+  HP: 100
+  baseDefense: 1
+  bonusDefense: 0
+  basePower: 4
+  bonusPower: 0
+  XP: 0
 --- !u!114 &4274501268246123384
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -86,9 +80,29 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   position: {x: 0, y: 0}
+  entityNumber: 0
   entitySprites: []
   fighter: {fileID: 0}
-  ai: {fileID: 0}
+  hasActed: 1
+  isDead: 0
+  isConfused: 0
+  confusedTurnsLeft: 0
+--- !u!114 &1593930518984937346
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8796285166437535144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b122bec6aa258e4291998ad83d0d022, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  currentLevel: 0
+  currentXP: 0
+  levelUpBase: 200
+  levelUpFactor: 150
 --- !u!1 &8796285168140415334
 GameObject:
   m_ObjectHideFlags: 0
@@ -114,7 +128,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8796285168140415334}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.5, y: 0.5, z: 0}
+  m_LocalPosition: {x: 0.5, y: 0.5, z: -3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 8796285166437535127}
@@ -158,7 +172,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_Sprite: {fileID: 21300000, guid: fc65cd397c559074980a7a0fa341c85d, type: 3}
-  m_Color: {r: 0, g: 0.6973052, b: 1, a: 1}
+  m_Color: {r: 0.1764706, g: 0.8862746, b: 0.90196085, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0

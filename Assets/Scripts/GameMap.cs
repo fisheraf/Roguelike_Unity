@@ -1,10 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
 using System.Diagnostics;
 using Debug = UnityEngine.Debug;
+using TMPro;
 
 
 public class GameMap : MonoBehaviour
@@ -25,7 +27,72 @@ public class GameMap : MonoBehaviour
     public int minRoomSize = 5;
     public int maxNumberOfRooms = 50;
 
-    public int maxNumberOfMonstersPerRoom = 3;
+    // int maxNumberOfMonstersPerRoom = 4;
+    //numer of monsters (key) after level (value)
+    List<KeyValuePair<int, int>> monsterCountTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(2,1),
+        new KeyValuePair<int, int>(3,4),
+        new KeyValuePair<int, int>(5,6)
+    };
+
+    //public int maxNumberOfItemsPerRoom = 3;
+    //likelihood of item (key) after level (value)
+    List<KeyValuePair<int, int>> itemCountTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(1,1),
+        new KeyValuePair<int, int>(2,4),
+        new KeyValuePair<int, int>(3,6)
+    };
+
+
+    List<KeyValuePair<int, int>> goblinChanceTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(900,0)
+    };
+    List<KeyValuePair<int, int>> orcChanceTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(151,3),
+        new KeyValuePair<int, int>(301,5),
+        new KeyValuePair<int, int>(601,7)
+    };
+
+
+    List<KeyValuePair<int, int>> healingChanceTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(500,0)
+    }; 
+
+    List<KeyValuePair<int, int>> lightningChanceTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(0,0),
+        new KeyValuePair<int, int>(250,4)
+    };
+
+    List<KeyValuePair<int, int>> fireballChanceTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(1,0),
+        new KeyValuePair<int, int>(249,6)
+    };
+
+    List<KeyValuePair<int, int>> confusionChanceTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(2,0),
+        new KeyValuePair<int, int>(100,2)
+    };
+
+    List<KeyValuePair<int, int>> swordChanceTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(3,0),
+        new KeyValuePair<int, int>(101,2)
+    };
+
+    List<KeyValuePair<int, int>> shieldChanceTable = new List<KeyValuePair<int, int>>()
+    {
+        new KeyValuePair<int, int>(4,0),
+        new KeyValuePair<int, int>(102,2)
+    };
+
 
     //public int fovAlgorithm = 0;
     public bool fovLightWalls = true;
@@ -50,7 +117,7 @@ public class GameMap : MonoBehaviour
 
     public GameObject player;
 
-
+    
     //clean up needed...
     /*
     List<Vector3Int> seenTiles = new List<Vector3Int>();
@@ -72,15 +139,46 @@ public class GameMap : MonoBehaviour
     Cell[,] grid;
     public List<Cell> path;
 
-    bool[,] tileSeen = new bool[76, 40];
+    public bool[,] tileSeen = new bool[76, 40];
     public bool[,] tileVisible = new bool[76, 40];
     public bool[,] tileIsWall = new bool[76, 40];
+    public bool[,] hasEntity = new bool [76, 40];
+    public bool[,] hasItem = new bool[76, 40];
+    public bool[,] isWalkable = new bool[76, 40];
 
-    bool [,] hasEntity = new bool [76, 40];
     //bool is item
 
     public List<GameObject> entities = new List<GameObject>();
+    public List<GameObject> deadEntities = new List<GameObject>();
+    public List<GameObject> items = new List<GameObject>();
+    public List<GameObject> equipment = new List<GameObject>();
+    public GameObject stairs;
 
+    public Dictionary<int, string> monsterDict = new Dictionary<int, string>
+    {
+        {900, "goblin" },
+        {100, "orc" }
+    };
+
+    
+    public Dictionary<int, string> itemDict = new Dictionary<int, string>
+    {
+        
+        {500, "healing potion" },
+        {0, "lightning scroll" },
+        {1, "fireball scroll" },
+        {2, "confusion scroll" },
+        {3, "sword" },
+        {4, "shield" }
+        
+    };
+
+
+    private void Awake()
+    {
+        //FillMap();
+        //MakeMap();
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -90,7 +188,7 @@ public class GameMap : MonoBehaviour
         grid2 = FindObjectOfType<Grid2>();
         //set camera size from width & height?
         //PlaceTile();        
-        FillMap();
+
         //numOfTiles = mapHeight * mapWidth;
         //MakeMap();
         //r = new RectInt(botLeft, size);
@@ -98,15 +196,23 @@ public class GameMap : MonoBehaviour
         //PlaceTile(8, 8, wallTiles);
         player = GameObject.Find("Player");
         //FOV2();
+
+        //FillMap();
+        //MakeMap();
     }
 
     // Update is called once per frame
     void Update()
     {
+        if (player == null)
+        {
+            player = GameObject.Find("Player");
+        }
+
+
         if(Input.GetKeyDown(KeyCode.M))
         {
-            FillMap();
-            MakeMap();
+            NewMap();
         }
         if (Input.GetKeyDown(KeyCode.N))
         {
@@ -138,7 +244,17 @@ public class GameMap : MonoBehaviour
         }
     }*/
 
-    void FillMap()
+    public void NewMap()
+    {
+        FillMap();
+        HideAllTiles();
+        ClearObjects();
+
+        MakeMap();
+        Render();
+    }
+
+    public void FillMap()
     {
         for (int x = 0; x < mapWidth; x++)
         {
@@ -161,6 +277,43 @@ public class GameMap : MonoBehaviour
                 tileVisible[x, y] = true;
             }
         }
+    }
+
+    void HideAllTiles()
+    {
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                tileSeen[x, y] = false;
+                tileVisible[x, y] = false;
+                tilemap.SetColor(new Vector3Int(x, y, 0), Color.black);
+            }
+        }
+    }
+
+    void ClearObjects()
+    {
+        foreach (GameObject entity in entities)
+        {
+            Destroy(entity);
+        }
+        entities.Clear();
+        foreach (GameObject deadEntity in deadEntities)
+        {
+            Destroy(deadEntity);
+        }
+        deadEntities.Clear();
+        foreach (GameObject item in items)
+        {
+            Destroy(item);
+        }
+        items.Clear();
+        foreach (GameObject equipment in equipment)
+        {
+            Destroy(equipment);
+        }
+        equipment.Clear();
     }
 
     void CreateGrid()
@@ -208,13 +361,15 @@ public class GameMap : MonoBehaviour
         //Debug.Log("Creating gizmos took:" + timer.Elapsed);
     }*/
 
-    void MakeMap()
+    int numberOfRooms = 0;
+
+    public void MakeMap()
     {
         timer = new Stopwatch();
         timer.Start();
 
         List<Rect> rooms = new List<Rect>();
-        int numberOfRooms = 0;
+        numberOfRooms = 0;
 
         //level variety with random maxNumberOfRooms?
 
@@ -241,23 +396,32 @@ public class GameMap : MonoBehaviour
             }
             if(!overlapping)
             {
-                RectInt newRoomInt = new RectInt(Mathf.RoundToInt(newRoom.xMin + 1), 
+                RectInt newRoomRect = new RectInt(Mathf.RoundToInt(newRoom.xMin + 1), 
                     Mathf.RoundToInt(newRoom.yMin + 1),
                     Mathf.RoundToInt(newRoom.width - 2), 
                     Mathf.RoundToInt(newRoom.height - 2));
                 //StartCoroutine(CreateRoomD(newRoomInt));
-                CreateRoom(newRoomInt);
+                CreateRoom(newRoomRect);
 
                 //center of room for tunnels
-                int newX = Mathf.RoundToInt(newRoomInt.center.x);
-                int newY = Mathf.RoundToInt(newRoomInt.center.y);
+                int newX = Mathf.RoundToInt(newRoomRect.center.x);
+                int newY = Mathf.RoundToInt(newRoomRect.center.y);
 
 
                 if (numberOfRooms == 0)
                 {
                     //engine.CreateEntity(newX, newY, -1, 0, new Color32(0, 135, 255, 255), "Player");
-                    engine.CreatePlayer(newX,newY, -1);
+
+                    if(player == null)
+                    {
+                        engine.CreatePlayer(newX, newY, -1, 100, 1, 4);
+                    }
+                    else
+                    {
+                        player.transform.position = new Vector3(newX, newY, -1);
+                    }
                     player = GameObject.Find("Player");
+                    
                     //if(player == null)
                     //{
                     //    player = GameObject.Find("Player");
@@ -293,16 +457,26 @@ public class GameMap : MonoBehaviour
 
                 //PlaceEntities(newRoomInt);
 
+                PlaceEntities(newRoomRect);
+                PlaceItems(newRoomRect);
+
+
                 rooms.Add(newRoom);
                 numberOfRooms++;
             }
             //yield return new WaitForSeconds(.1f);
         }
+
+        if(rooms.Count > 1)
+        {
+            Vector2 lastRoom = rooms[rooms.Count - 1].center;
+            engine.CreateStairs(lastRoom);
+        }
+
         timer.Stop();
         Debug.Log("Creating map took:" + timer.Elapsed);
         //FOVRecompute();
         FOV();
-        grid2.CreateGrid();
         //GetVisibleCells();
     }
     
@@ -319,7 +493,8 @@ public class GameMap : MonoBehaviour
                 //StartCoroutine(PlaceTileWithDelay(i, j, floorTiles));
             }
         }
-        PlaceEntities(rectInt);
+        //PlaceEntities(rectInt);
+        //PlaceItems(rectInt);
     }
     void CreateHorizontalTunnel(int x1, int x2, int y)
     {
@@ -344,7 +519,7 @@ public class GameMap : MonoBehaviour
         }
     }
 
-    void PlaceTile(int x, int y, TileBase tile)
+    public void PlaceTile(int x, int y, TileBase tile)
     {
         tilemap.SetTile(new Vector3Int(x, y, 0), tile);
         tilemap.SetTileFlags(new Vector3Int(x, y, 0), TileFlags.None);
@@ -382,19 +557,23 @@ public class GameMap : MonoBehaviour
 
     float degToRad = Mathf.PI / 100;
 
-    int DiagDistance(int x, int y, int x1, int y1)
+    public int DiagDistance(int x, int y, int x1, int y1)
     {
+        /*
         int dx = x1 - x;
         int dy = y1 - y;
         return  Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
+        */
+
+        return (int)Vector2.Distance(new Vector2(x, y), new Vector2(x1, y1));
     }
 
     public void FOV()
     {
         //Debug.Log("FOV");
         ClearVisibleTiles();
-        timer = new Stopwatch();
-        timer.Start();
+        //timer = new Stopwatch();
+        //timer.Start();
 
         //visibleWallTiles.Clear();
         //visibleFloorTiles.Clear();
@@ -446,7 +625,7 @@ public class GameMap : MonoBehaviour
 
         //RenderRecent();
 
-        timer.Stop();
+        //timer.Stop();
         //Debug.Log("Rendering took:" + timer.Elapsed);
         //previousTiles.Clear();
 
@@ -455,6 +634,7 @@ public class GameMap : MonoBehaviour
         Render();
     }
 
+    
     void ClearVisibleTiles()
     {
         for (int x = 0; x < mapWidth; x++)
@@ -462,6 +642,8 @@ public class GameMap : MonoBehaviour
             for (int y = 0; y < mapHeight; y++)
             {
                 tileVisible[x, y] = false;
+                hasEntity[x, y] = false;
+                isWalkable[x, y] = true;
 
                 /*foreach (GameObject entity in entities)
                 {
@@ -538,7 +720,7 @@ public class GameMap : MonoBehaviour
     }
          
 
-    void Render()
+    public void Render()
     {
         ResetEntitiesRender();
         //Debug.Log("render");
@@ -563,11 +745,37 @@ public class GameMap : MonoBehaviour
 
                         foreach (GameObject entity in entities)
                         {
+                            hasEntity[(int)entity.transform.position.x, (int)entity.transform.position.y] = true;
                             if (entity.transform.position.x == x && entity.transform.position.y == y)
                             {
-                                entity.transform.position = new Vector3(x, y, -1);
+                                //entity.transform.position = new Vector3(x, y, -1);
+                                //entity.GetComponentInChildren<SpriteRenderer>().enabled = true;
+                                entity.GetComponentInChildren<TextMeshPro>().enabled = true;
                             }
                         }
+                        foreach(GameObject deadEntity in deadEntities)
+                        {
+                            //hasEntity[(int)deadEntity.transform.position.x, (int)deadEntity.transform.position.y] = true;
+                            if (deadEntity.transform.position.x == x && deadEntity.transform.position.y == y)
+                            {
+                                deadEntity.GetComponentInChildren<TextMeshPro>().enabled = true;
+                            }
+                        }
+
+                        foreach(GameObject item in items)
+                        {
+                            hasItem[(int)item.transform.position.x, (int)item.transform.position.y] = true;
+                            if (item.transform.position.x == x && item.transform.position.y == y)
+                            {
+                                item.GetComponentInChildren<SpriteRenderer>().enabled = true;
+                            }
+                        }
+
+                        if (stairs.transform.position.x == x && stairs.transform.position.y == y)
+                        {
+                            stairs.GetComponent<Stairs>().hasBeenSeen = true;
+                        }
+
                     }
                     else
                     {
@@ -584,54 +792,248 @@ public class GameMap : MonoBehaviour
                 }
             }
         }
+        if (stairs.GetComponent<Stairs>().hasBeenSeen == true)
+        {
+            stairs.GetComponentInChildren<SpriteRenderer>().enabled = true;
+        }
+        grid2.CreateGrid();
+    }
+
+    public void UpdateWalkable()
+    {
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                isWalkable[x, y] = true;
+
+                foreach (GameObject entity in entities)
+                {
+                    hasEntity[(int)entity.transform.position.x, (int)entity.transform.position.y] = true;
+                }
+
+                if (tileIsWall[x, y] || hasEntity[x, y])
+                {
+                    isWalkable[x, y] = false;
+                }
+            }
+        }
+    }
+
+    public void LoadTiles()
+    {
+        for (int x = 0; x < mapWidth; x++)
+        {
+            for (int y = 0; y < mapHeight; y++)
+            {
+                //Debug.Log(x + "," + y);
+                if(tileIsWall[x,y] == true)
+                {
+                    PlaceTile(x, y, wallTiles);
+                }
+                else
+                {
+                    //Debug.Log("floor tile placed");
+                    PlaceTile(x, y, floorTiles);
+                }
+
+                if(!tileSeen[x,y])
+                {
+                    tilemap.SetColor(new Vector3Int(x, y, 0), Color.black);
+                }
+            }
+        }
     }
 
     void ResetEntitiesRender()
     {
         foreach (GameObject entity in entities)
         {            
-            {   
+            {
                 //moved entities to z = 1 to remove from camera
-                entity.transform.position = new Vector3(entity.transform.position.x, entity.transform.position.y, 1);
+                //entity.transform.position = new Vector3(entity.transform.position.x, entity.transform.position.y, 1);
+                //entity.GetComponentInChildren<SpriteRenderer>().enabled = false;
+                //entity.GetComponentInChildren<TextMeshPro>().enabled = false;
+                entity.GetComponentInChildren<TextMeshPro>().enabled = false;
                 //entity.GetComponentInChildren<SpriteRenderer>().color = Color.red;
             }
         }
+        foreach (GameObject deadEntity in deadEntities)
+        {
+            deadEntity.GetComponentInChildren<TextMeshPro>().enabled = false;
+        }
+        foreach (GameObject item in items)
+        {
+            item.GetComponentInChildren<SpriteRenderer>().enabled = false;
+        }
     }
-       
+    
+ 
+
+    private int RandomChoiceIndex(List<int> chances)
+    {
+        int randomChance = Random.Range(1, chances.Sum());
+
+        int runningSum = 0;
+        int choice = 0;
+        for (int i = 0; i < chances.Count; i++)
+        {
+            runningSum += chances[i];
+
+            if (randomChance <= runningSum)
+            {
+                return choice;
+            }
+            choice += 1;
+        }
+        return 0;
+    }
+
+    //key is %chance and value is chance selection(monst/item)
+    private string RandomChoiceFromDict(Dictionary<int, string> choiceDict)
+    {
+        List<int> chances = choiceDict.Keys.ToList();
+        List<string> choices = choiceDict.Values.ToList();
+
+        return choices[RandomChoiceIndex(chances)];
+    }
+
+    //key is %chance and value is dungeon level
+    public int FromDungeonLevel(List<KeyValuePair<int, int>> table)
+    {
+        for (int i = table.Count - 1; i >= 0; i--)
+        {
+            if (table[i].Value <= engine.dungeonLevel)
+            {
+                return table[i].Key;
+            }
+        }
+        return 0;
+    }
+
+    public void UpdateDicts()
+    {
+        monsterDict.Clear();  
+        monsterDict.Add(FromDungeonLevel(goblinChanceTable), "goblin");
+        monsterDict.Add(FromDungeonLevel(orcChanceTable), "orc");
+
+        itemDict.Clear();
+        itemDict.Add(FromDungeonLevel(healingChanceTable), "healing potion");
+        itemDict.Add(FromDungeonLevel(lightningChanceTable), "lightning scroll");
+        itemDict.Add(FromDungeonLevel(fireballChanceTable), "fireball scroll");
+        itemDict.Add(FromDungeonLevel(confusionChanceTable), "confusion scroll");
+        itemDict.Add(FromDungeonLevel(swordChanceTable), "sword");
+        itemDict.Add(FromDungeonLevel(shieldChanceTable), "shield");
+    }
+
 
     public void PlaceEntities(RectInt rectInt)
     {
-        int numberOfMonsters = Random.Range(0, maxNumberOfMonstersPerRoom);
+        int maxNumberOfMonstersPerRoom = FromDungeonLevel(monsterCountTable);
+        int numberOfMonsters = Random.Range(0, maxNumberOfMonstersPerRoom + 1);
 
-        for (int i = 0; i < numberOfMonsters; i++)
+        for (int i = 0; i <= numberOfMonsters; i++)
         {
             int x = Random.Range(rectInt.x, rectInt.x + rectInt.width);
             int y = Random.Range(rectInt.y, rectInt.y + rectInt.height);
 
+            if (hasEntity[x, y] || (player.transform.position.x == x && player.transform.position.y == y)) return;
 
             {
+                /*
                 if(Random.Range(0,100) < 20)
                 {
-                    engine.CreateEntity(x, y, 1, 1, new Color32(0, 80, 0, 255), "Orc");
-
+                    //engine.CreateEntity(x, y, 1, 2, new Color32(0, 80, 0, 255), "Orc", 10, 1, 3);
+                    engine.CreateEntity(x, y, 1);
                 }
                 else
                 {
-                    engine.CreateEntity(x, y, 1, 1, new Color32(0, 160, 0, 255), "Goblin");
+                    //.CreateEntity(x, y, 1, 2, new Color32(0, 160, 0, 255), "Goblin", 5, 0, 2);
+                    engine.CreateEntity(x, y, 0);
+                }
+                */
+                string monsterChoice = RandomChoiceFromDict(monsterDict);
+                if(monsterChoice == "orc")
+                {
+                    engine.CreateEntity(x, y, 1);
+                }
+                else
+                {
+                    engine.CreateEntity(x, y, 0);
                 }
             }
 
         }
     }
 
-    public void LocateEntities()
+    public void PlaceItems(RectInt rectInt)
     {
-        foreach(GameObject entity in entities)
-        {
-            //
-        }
-    }
+        //int numberOfItems = 10;//Random.Range(0, maxNumberOfItemsPerRoom);
+        int maxNumberOfItemsPerRoom = FromDungeonLevel(itemCountTable);
+        int numberOfItems = Random.Range(0, maxNumberOfItemsPerRoom + 1);
 
+        for (int i = 0; i <= numberOfItems; i++)
+        {
+            int x = Random.Range(rectInt.x, rectInt.x + rectInt.width);
+            int y = Random.Range(rectInt.y, rectInt.y + rectInt.height);
+
+            if (hasItem[x, y]) return;
+
+            /*
+            {
+                int itemChance = Random.Range(0, 500);
+
+                if (itemChance < 25)
+                {
+                    engine.CreateItem(x, y, 1);
+
+                }
+                else if (itemChance < 50)
+                {
+                    engine.CreateItem(x, y, 2);
+
+                }
+                else if (itemChance < 75)
+                {
+                    engine.CreateItem(x, y, 3);
+                }
+                else
+                {
+                    engine.CreateItem(x, y, 4);
+                }
+            }
+            */
+
+            string itemChoice = RandomChoiceFromDict(itemDict);
+            //Debug.Log(itemChoice);
+
+            if (itemChoice == "healing potion")
+            {
+                engine.CreateItem(x, y, 1);
+            }
+            else if (itemChoice == "lightning scroll")
+            {
+                engine.CreateItem(x, y, 2);
+            }
+            else if (itemChoice == "fireball scroll")
+            {
+                engine.CreateItem(x, y, 3);
+            }
+            else if(itemChoice == "confusion scroll")
+            {
+                engine.CreateItem(x, y, 4);
+            }
+
+            else if(itemChoice == "sword")
+            {
+                engine.CreateEquipment(x, y, 101);
+            }
+            else if(itemChoice == "shield")
+            {
+                engine.CreateEquipment(x, y, 102);
+            }
+        }
+    }   
 
     public void ShowMap()
     {
@@ -651,6 +1053,7 @@ public class GameMap : MonoBehaviour
             }
         }
     }
+
 
     public List<Cell> neighbors = new List<Cell>();
     public List<Vector2> neighbours = new List<Vector2>();

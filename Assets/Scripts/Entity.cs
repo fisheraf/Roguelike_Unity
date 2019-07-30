@@ -1,24 +1,35 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 public class Entity : MonoBehaviour
 {    
     public Vector2 position;//seperate to X & Y?
+    public int entityNumber;
     //public string entityName;
     public Sprite[] entitySprites;
 
     SpriteRenderer spriteRenderer;
 
+    TextMeshPro text;
+
     public Fighter fighter;
-    public AI ai;
+    //public AI ai;
+
+    public bool hasActed = true;
+    public bool isDead = false;
+
+    public bool isConfused = false;
+    public int confusedTurnsLeft = 0;
 
     //[SerializeField] public CircleCollider2D[] directionalColliders;
 
     // Start is called before the first frame update
     void Start()
     {
-        //spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        text = GetComponentInChildren<TextMeshPro>();
         //gameObject.name = entityName;
         //spriteRenderer.sprite = entitySprites[0];
 
@@ -82,5 +93,18 @@ public class Entity : MonoBehaviour
             gameObject.transform.position += transform.up + transform.right;
         }
 
+    }
+
+    public void KillEntity()
+    {
+        //spriteRenderer.sprite = entitySprites[1];
+        //spriteRenderer.color = Color.red;
+        text.text = "x";
+        text.color = Color.red;
+
+        name = "Dead " + name;
+        FindObjectOfType<GameMap>().entities.Remove(gameObject);
+        FindObjectOfType<GameMap>().deadEntities.Add(gameObject);
+        isDead = true;
     }
 }
