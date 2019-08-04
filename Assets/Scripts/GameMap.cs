@@ -209,14 +209,14 @@ public class GameMap : MonoBehaviour
             player = GameObject.Find("Player");
         }
 
-
+        
         if(Input.GetKeyDown(KeyCode.M))
         {
-            NewMap();
+            //NewMap();
         }
         if (Input.GetKeyDown(KeyCode.N))
         {
-            ShowMap();
+            //ShowMap();
         }
         if (Input.GetKeyDown(KeyCode.Q))
         {

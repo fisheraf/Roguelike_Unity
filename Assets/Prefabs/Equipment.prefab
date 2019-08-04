@@ -126,8 +126,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   position: {x: 0, y: 0}
   entitySprites:
-  - {fileID: 21300000, guid: 40977099652a27f44be23e019749aa7a, type: 3}
-  - {fileID: 21300000, guid: 81b7a341ffd8f3641981fd935c704152, type: 3}
+  - {fileID: 21300000, guid: 9673e85836e47ac4d92bcb88dde1c1ab, type: 3}
+  - {fileID: 21300000, guid: 8ad43e9a59d257247bd2afcba83b2d4b, type: 3}
 --- !u!114 &1640404450809184465
 MonoBehaviour:
   m_ObjectHideFlags: 0

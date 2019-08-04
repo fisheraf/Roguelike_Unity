@@ -69,11 +69,11 @@ public class Engine : MonoBehaviour
     {
         if(Input.GetKeyDown(KeyCode.S))
         {
-            SaveProgress();
+            //SaveProgress();
         }
         if (Input.GetKeyDown(KeyCode.L))
         {
-            LoadProgress();
+            //LoadProgress();
         }
 
 
@@ -379,7 +379,7 @@ public class Engine : MonoBehaviour
         {
             PickUpItem();
         }
-        if(Input.GetKeyDown(KeyCode.Return))
+        if(Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
         {
             UseStairs();
         }
@@ -819,6 +819,8 @@ public class Engine : MonoBehaviour
 
         stopwatch.Stop();
         Debug.Log("Saving took:" + stopwatch.Elapsed);
+
+        uiManager.NewMessage("Game Saved!");
     }
 
     public void LoadProgress()
