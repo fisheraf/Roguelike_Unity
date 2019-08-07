@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
-
+using System.Linq;
 
 public class Fighter : MonoBehaviour
 {
@@ -27,17 +27,19 @@ public class Fighter : MonoBehaviour
     {
         uiManager = FindObjectOfType<UIManager>();
     }
+       
 
-    
 
-
-    public void takeDamage(int damage)
+    public void TakeDamage(int damage)
     {
         HP -= damage;
         if(name == "Player")
         {
-            //uiManager.SetHealthText(HP);
             uiManager.SetUIText();
+            if(damage > 0)
+            {
+                uiManager.DamageFlash();
+            }
         }
 
         if(HP <= 0)
@@ -46,7 +48,7 @@ public class Fighter : MonoBehaviour
             {
                 uiManager.NewMessage("The " + this.GetComponent<Entity>().name + " dies.");
                 FindObjectOfType<Player>().GetComponent<Level>().addXP(XP);
-                uiManager.NewMessage("You gain " + XP + " experience.");
+                uiManager.NewMessage("You gain<size=200%><voffset=-.2em><#F6019D> " + XP + "</size></voffset></color> experience.");
                 GetComponent<Entity>().KillEntity();
             }
             else if(name == "Player")
@@ -58,7 +60,7 @@ public class Fighter : MonoBehaviour
         }
     }
 
-    public void attack(Fighter target)
+    public void Attack(Fighter target)
     {
         int damage = power - target.defense;
 
@@ -67,7 +69,7 @@ public class Fighter : MonoBehaviour
             //Debug.Log(target + " takes " + damage + " damage from " + this.GetComponent<Entity>().name + ".");
             uiManager.NewMessage(target.name + " " + "takes<size=200%><voffset=-.2em><#FF6C11> " +  damage + "</size></voffset></color> damage from " + this.GetComponent<Entity>().name + ".");
             //add kills message
-            target.takeDamage(damage);
+            target.TakeDamage(damage);
         }
         else
         {
@@ -76,14 +78,43 @@ public class Fighter : MonoBehaviour
         }
     }
 
-    public void heal(int amount)
+    public void Heal(int amount)
     {
         HP = HP + amount;
         if (HP > MaxHP)
         {
             HP = MaxHP;
         }
-        //uiManager.SetHealthText(HP);
         uiManager.SetUIText();
+    }
+
+
+    public List<HoT> HoTs = new List<HoT>();
+
+    public void NanoHeal(int amount, int duration)
+    {
+        HoTs.Add(new HoT(amount, duration));
+    }
+
+    public void UpdateHoTs()
+    {
+        if (!HoTs.Any())
+        {
+            return;
+        }
+        for (int i = 0; i < HoTs.Capacity; i++)
+        {
+            if(HoTs[i].duration > 0)
+            {
+                HoTs[i].duration--;
+                Heal(HoTs[i].amount);
+                return;
+            }
+            else
+            {
+                HoTs.Remove(HoTs[i]);
+                return;
+            }
+        }
     }
 }

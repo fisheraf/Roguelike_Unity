@@ -4,11 +4,11 @@ using UnityEngine;
 
 public class Item : MonoBehaviour
 {
-    public Vector2 position;
-    public Sprite[] entitySprites;
+    public int itemNumber;
+    //public Sprite[] entitySprites;
     SpriteRenderer spriteRenderer;
 
-    int value;
+    public int value;
 
     Engine engine = null;
     GameMap gameMap = null;
@@ -16,7 +16,8 @@ public class Item : MonoBehaviour
     Player player = null;
     Inventory inventory = null;
 
-    public enum ItemType { Null, HealingPotion, LightningScroll, Fireball, ConfusionScroll }
+
+    public enum ItemType { Null, HealingPotion, LightningScroll, Fireball, ConfusionScroll, Nano }
 
     IDictionary<int, string> itemDictionary = new Dictionary<int, string>()
     {
@@ -26,7 +27,7 @@ public class Item : MonoBehaviour
         {4, "Confusion Scroll" }
     };
 
-    ItemType itemType = ItemType.Null;
+    public ItemType itemType = ItemType.Null;
 
     // Start is called before the first frame update
     void Awake()
@@ -46,53 +47,18 @@ public class Item : MonoBehaviour
         {
             player = FindObjectOfType<Player>();
         }
-        position.x = transform.position.x;
-        position.y = transform.position.y;
-    }
-    
-    /*
-    public void SetItem(ItemType type, int number)
-    {
-        itemType = type;
-        value = number;
+    }    
 
-        if(type == ItemType.HealingPotion)
-        {
-            gameObject.name = "Healing Potion";
-            spriteRenderer.sprite = entitySprites[0];
-            spriteRenderer.color = Color.red;
-        }
-        if(type == ItemType.LightningScroll)
-        {
-            gameObject.name = "Lightning Scroll";
-            spriteRenderer.sprite = entitySprites[1];
-            spriteRenderer.color = Color.yellow;
-        }
-        if (type == ItemType.Fireball)
-        {
-            gameObject.name = "Fireball Scroll";
-            spriteRenderer.sprite = entitySprites[1];
-            spriteRenderer.color = Color.red;
-        }
-        if (type == ItemType.ConfusionScroll)
-        {
-            gameObject.name = "Confusion Scroll";
-            spriteRenderer.sprite = entitySprites[1];
-            spriteRenderer.color = Color.magenta;
-        }
-    }*/
-    
+    /*
     public void SetItem(int itemNumber)
     {
-        //itemType = type;
-        //value = number;
-
         if (itemNumber == 1)
         {
             gameObject.name = "Healing Potion";
             spriteRenderer.sprite = entitySprites[0];
             spriteRenderer.color = Color.red;
             itemType = ItemType.HealingPotion;
+            value = 10;
         }
         if (itemNumber == 2)
         {
@@ -100,6 +66,7 @@ public class Item : MonoBehaviour
             spriteRenderer.sprite = entitySprites[1];
             spriteRenderer.color = Color.yellow;
             itemType = ItemType.LightningScroll;
+            value = 20;
         }
         if (itemNumber == 3)
         {
@@ -107,6 +74,7 @@ public class Item : MonoBehaviour
             spriteRenderer.sprite = entitySprites[1];
             spriteRenderer.color = Color.red;
             itemType = ItemType.Fireball;
+            value = 10;
         }
         if (itemNumber == 4)
         {
@@ -115,7 +83,8 @@ public class Item : MonoBehaviour
             spriteRenderer.color = Color.magenta;
             itemType = ItemType.ConfusionScroll;
         }
-    }
+    }*/
+
     
 
     public void PickUpObject()
@@ -123,9 +92,12 @@ public class Item : MonoBehaviour
         gameMap.items.Remove(gameObject);
         uiManager.NewMessage("You pick up " + name + ".");
         inventory.items.Add(this.gameObject);
-        //gameObject.SetActive(false);
         gameObject.transform.position = new Vector3(-10, -10, -1);
     }
+
+    //public virtual void UseObject()
+    //script for each item...
+    // https://learn.unity.com/tutorial/overriding#  https://answers.unity.com/questions/135194/how-to-use-different-types-of-scripts-with-an-over.html
 
     public void UseObject()
     {
@@ -142,7 +114,7 @@ public class Item : MonoBehaviour
             {
                 //Debug.Log("Heal");
                 int healthGained = 0;
-                value = 10;
+
                 if(fighter.MaxHP-fighter.HP < value)
                 {
                     healthGained = (fighter.MaxHP - fighter.HP);
@@ -177,7 +149,7 @@ public class Item : MonoBehaviour
             if (target != null)
             {
                 uiManager.NewMessage("You strike " + target.name + " with a bolt of lightning");
-                target.GetComponent<Fighter>().takeDamage(value);
+                target.GetComponent<Fighter>().TakeDamage(value);
 
                 ItemUsed();
             }
@@ -204,7 +176,13 @@ public class Item : MonoBehaviour
             StartCoroutine(Targeting(true));
         }
 
+        if (itemType == ItemType.Nano)
+        {
+            Fighter fighter = player.gameObject.GetComponent<Fighter>();
+            fighter.NanoHeal(1, 20);
 
+            ItemUsed();
+        }
     }
 
     public void ItemUsed()
@@ -218,12 +196,11 @@ public class Item : MonoBehaviour
     IEnumerator Targeting(bool entityRequired)
     {
         StartCoroutine(engine.TargetSelect(entityRequired));
-        //yield return new WaitUntil(() => engine.targetSelected == true);
+
         while(engine.targetSelected == false)
         {
             yield return null;
         }
-        //yield return StartCoroutine(engine.WaitForTargetSelection());
 
         if (itemType == ItemType.Fireball)
         {
@@ -242,9 +219,6 @@ public class Item : MonoBehaviour
         //Debug.Log("Fireball cast at " + target);
         int radius = 3;
 
-        //target = engine.target;
-        
-
         for (int i = engine.entities.Count - 1; i >= 0; i--)
         {
             int distanceToEntity = gameMap.DiagDistance(target.x, target.y, (int)engine.entities[i].transform.position.x, (int)engine.entities[i].transform.position.y);
@@ -252,16 +226,14 @@ public class Item : MonoBehaviour
             if (distanceToEntity <= radius)
             {
                 uiManager.NewMessage("The " + engine.entities[i].name + " is engulfed in flames.");
-                engine.entities[i].GetComponent<Fighter>().takeDamage(value);
-
-                //damage to player if in range
+                engine.entities[i].GetComponent<Fighter>().TakeDamage(value);
             }
         }
 
         if(gameMap.DiagDistance(target.x, target.y, (int)player.transform.position.x, (int)player.transform.position.y) <= radius)
         {
             uiManager.NewMessage("The " + player.name + " is engulfed in flames.");
-            player.gameObject.GetComponent<Fighter>().takeDamage(value);
+            player.gameObject.GetComponent<Fighter>().TakeDamage(value);
         }
 
         inventory.items.Remove(this.gameObject);
@@ -309,6 +281,6 @@ public class Item : MonoBehaviour
 
     void Heal()
     {
-        FindObjectOfType<Player>().GetComponent<Fighter>().heal(value);
+        FindObjectOfType<Player>().GetComponent<Fighter>().Heal(value);
     }
 }

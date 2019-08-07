@@ -5,8 +5,7 @@ using UnityEngine;
 public class Equippable : MonoBehaviour
 {
     public EquipmentSlots.Equipmentslot slot;
-    Item itemScript = null;
-    SpriteRenderer spriteRenderer = null;
+    //SpriteRenderer spriteRenderer = null;
     Inventory inventory = null;
     Engine engine = null;
     Equipment equipment = null;
@@ -16,12 +15,9 @@ public class Equippable : MonoBehaviour
     public int hpBonus = 0;
     public int defenseBonus = 0;
     public int powerBonus = 0;
-    //string slotName = null;
 
     private void Start()
     {
-        //itemScript = GetComponent<Item>();
-        //spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         inventory = FindObjectOfType<Inventory>();
         engine = FindObjectOfType<Engine>();
         equipment = FindObjectOfType<Equipment>();
@@ -84,6 +80,7 @@ public class Equippable : MonoBehaviour
         }
     }
 
+    /*
     public void SetEquipment(int eNumber)
     {
         if(eNumber == 101)
@@ -92,7 +89,6 @@ public class Equippable : MonoBehaviour
             hpBonus = 0;
             powerBonus = 3;
             defenseBonus = 0;
-            //slotName = "main hand";
             GetComponentInChildren<SpriteRenderer>().sprite = GetComponent<Item>().entitySprites[0];
             slot = EquipmentSlots.Equipmentslot.MainHand;
         }
@@ -102,9 +98,8 @@ public class Equippable : MonoBehaviour
             hpBonus = 0;
             powerBonus = 0;
             defenseBonus = 1;
-            //slotName = "off hand";
             GetComponentInChildren<SpriteRenderer>().sprite = GetComponent<Item>().entitySprites[1];
             slot = EquipmentSlots.Equipmentslot.OffHand;
         }
-    }
+    }*/
 }

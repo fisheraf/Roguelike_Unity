@@ -12,18 +12,21 @@ public class Engine : MonoBehaviour
     [SerializeField] GameObject entityObject;
     [SerializeField] GameObject playerObject;
     public GameObject itemObject;
-    public GameObject equipmentObject;
+    //public GameObject equipmentObject;
     [SerializeField] GameObject stairsObject = null;
     [SerializeField] UIManager uiManager;
     [SerializeField] Inventory inventory;
     Entity entity;
-    Entity playerEntity;
+    Item item;
+    Player player;
     //[SerializeField] GameObject player;
     [SerializeField] Tilemap tilemap;
     GameMap gameMap;
     Grid2 grid2;
 
-    public GameObject[] enemy;
+    public GameObject[] enemyList;
+    public GameObject[] itemList;
+    //public GameObject[] equipmentList;
 
     public Vector3 worldPoint;
     public Vector2Int target;
@@ -35,15 +38,15 @@ public class Engine : MonoBehaviour
 
     GameObject stairsObj = null;
     public int dungeonLevel = 0;
+    public int turnsTaken = 0;
 
-    public enum GameState { PlayerTurn, EnemyTurn, PlayerDead, ShowInventory, DropInventory, Targeting, LevelUp }
+    public enum GameState { MainMenu, PlayerTurn, EnemyTurn, PlayerDead, ShowInventory, DropInventory, Targeting, LevelUp }
 
-    public GameState gameState = GameState.PlayerTurn;
+    public GameState gameState = GameState.MainMenu;
     GameState lastGameState;
 
     public Stopwatch stopwatch;
 
-    // Start is called before the first frame update
     void Awake()
     {
         gameMap = FindObjectOfType<GameMap>().GetComponent<GameMap>();
@@ -58,11 +61,10 @@ public class Engine : MonoBehaviour
         entities = gameMap.entities;
         deadEntities = gameMap.deadEntities;
         items = gameMap.items;
-        //player = GameObject.Find("Player");
-        //entity = player.GetComponent<Entity>();
-
-        //gameState = GameState.PlayerTurn;
     }
+
+
+    bool playerTurn;
 
     // Update is called once per frame
     void Update()
@@ -76,18 +78,26 @@ public class Engine : MonoBehaviour
             //LoadProgress();
         }
 
-
         if (gameState == GameState.PlayerTurn)
         {
-            Movement();
+            player.Movement();
             Actions();
             DropInventory();
+            if(!playerTurn)
+            {
+                PlayerTurn();
+            }
         }
 
         //enemy turn test
         if (gameState == GameState.EnemyTurn)
         {  
-            EnemyTurn();
+            if(playerTurn)
+            {
+                Debug.Log("eturn");
+                EnemyTurn();
+            }
+
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 gameState = GameState.PlayerTurn;
@@ -114,6 +124,13 @@ public class Engine : MonoBehaviour
         }
 
         MouseOverTooltips();
+    }
+
+    void PlayerTurn()
+    {
+        //Debug.Log("player turn");
+        playerObject.GetComponent<Fighter>().UpdateHoTs();
+        playerTurn = true;
     }
 
     private void MouseOverTooltips()
@@ -166,52 +183,7 @@ public class Engine : MonoBehaviour
         {
             uiManager.MouseOverText(null);
         }
-    }
-
-
-    /*
-    public void CreateEntity(int x, int y, int z, int spriteNumber, Color32 color, string name, int HP, int defense, int power)
-    {
-        entityObject = Instantiate(entityObject, new Vector3(x, y, z), Quaternion.identity);
-        entity = entityObject.GetComponent<Entity>();
-        SpriteRenderer spriteRenderer = entity.GetComponentInChildren<SpriteRenderer>();
-        spriteRenderer.sprite = entity.entitySprites[spriteNumber];
-        spriteRenderer.color = color;
-        entityObject.name = name;
-
-        Fighter fighter = entity.GetComponent<Fighter>();
-        fighter.MaxHP = HP;
-        fighter.HP = HP;
-        fighter.defense = defense;
-        fighter.power = power;
-
-
-        gameMap.entities.Add(entityObject);
-
-        /*
-        if (fighter)
-        {
-            entityObject.AddComponent<Fighter>();
-        }
-        if (ai)
-        {
-            entityObject.AddComponent<AI>();
-        }
-        *
-
-        //entity.entitySprite =  //list of sprites?
-    }*/
-
-    public void CreateEntity(int x, int y, int entityNumber)
-    {
-        entityObject = Instantiate(enemy[entityNumber], new Vector3(x, y, -1), Quaternion.identity);
-        entityObject.name = enemy[entityNumber].name;
-        entity = entityObject.GetComponent<Entity>();
-        entity.entityNumber = entityNumber;
-
-        gameMap.entities.Add(entityObject);
-    }
-        
+    }        
 
     public void CreatePlayer(int x, int y, int z, int HP, int defense, int power)
     {
@@ -224,32 +196,40 @@ public class Engine : MonoBehaviour
         fighter.baseDefense = defense;
         fighter.basePower = power;
 
-        playerEntity = GameObject.Find("Player").GetComponent<Entity>();
+        player = FindObjectOfType<Player>();
         uiManager.SetPlayer();
         FindObjectOfType<LevelUp>().SetPlayer();
     }
 
-    /*
-    public void CreateItem(int x, int y, int z, Item.ItemType itemType, int value)//enum?
-    {
-        itemObject = Instantiate(itemObject, new Vector3(x, y, z), Quaternion.identity);
-        //itemObject.name = name;
-        itemObject.GetComponent<Item>().SetItem(itemType, value);
 
-        gameMap.items.Add(itemObject);
+    public void CreateEntity(int x, int y, int entityNumber)
+    {
+        entityObject = Instantiate(enemyList[entityNumber], new Vector3(x, y, -2), Quaternion.identity);
+        entityObject.name = enemyList[entityNumber].name;
+        entity = entityObject.GetComponent<Entity>();
+        entity.entityNumber = entityNumber;
+
+        gameMap.entities.Add(entityObject);
     }
-    */
+    
 
     public void CreateItem(int x, int y, int itemNumber)
     {
-        itemObject = Instantiate(itemObject, new Vector3(x, y, -1), Quaternion.identity);
-        itemObject.GetComponent<Item>().SetItem(itemNumber);
-        itemObject.GetComponentInChildren<SpriteRenderer>().enabled = false;
+        //itemObject = Instantiate(itemObject, new Vector3(x, y, -1), Quaternion.identity);
+
+        //itemObject.GetComponent<Item>().SetItem(itemNumber);
+
+        itemObject = Instantiate(itemList[itemNumber], new Vector3(x, y, -1), Quaternion.identity);
+        itemObject.name = itemList[itemNumber].name;
+        item = itemObject.GetComponent<Item>();
+        item.itemNumber = itemNumber;
+
+        //itemObject.GetComponentInChildren<SpriteRenderer>().enabled = false;
 
         gameMap.items.Add(itemObject);
     }
 
-    public void CreateEquipment(int x, int y, int eNumber)
+    /*public void CreateEquipment(int x, int y, int eNumber)
     {
         //Debug.Log("create" + eNumber);
         equipmentObject = Instantiate(equipmentObject, new Vector3(x, y, -1), Quaternion.identity);
@@ -257,7 +237,7 @@ public class Engine : MonoBehaviour
         equipmentObject.GetComponentInChildren<SpriteRenderer>().enabled = false;
 
         gameMap.items.Add(equipmentObject);
-    }
+    }*/
 
     public void CreateStairs(Vector2 lastRoom)
     {
@@ -278,100 +258,7 @@ public class Engine : MonoBehaviour
     }
 
 
-    private void Movement()
-    {
-        //own script?
-        //Entity.Move(int dx, int dy)
-        //down left
-        if (Input.GetKeyDown(KeyCode.Keypad1))
-        {
-            Move(-1, -1);
-            //gameState = GameState.EnemyTurn;
-        }
-        //down
-        if (Input.GetKeyDown(KeyCode.Keypad2))
-        {
-            Move(0, -1);
-            //gameState = GameState.EnemyTurn;
-        }
-        //down right
-        if (Input.GetKeyDown(KeyCode.Keypad3))
-        {
-            Move(1, -1);
-            //gameState = GameState.EnemyTurn;
-        }
-        //left
-        if (Input.GetKeyDown(KeyCode.Keypad4))
-        {
-            Move(-1, 0);
-            //gameState = GameState.EnemyTurn;
-        }
-        //wait
-        if (Input.GetKeyDown(KeyCode.Keypad5))
-        {            
-            gameState = GameState.EnemyTurn;
-        } 
-        //right
-        if (Input.GetKeyDown(KeyCode.Keypad6))
-        {
-            Move(1, 0);
-            //gameState = GameState.EnemyTurn;
-        }
-        //up left
-        if (Input.GetKeyDown(KeyCode.Keypad7))
-        {
-            Move(-1, 1);
-            //gameState = GameState.EnemyTurn;
-        }
-        //up
-        if (Input.GetKeyDown(KeyCode.Keypad8))
-        {
-            Move(0, 1);
-            //gameState = GameState.EnemyTurn;
-        }
-        //up right
-        if (Input.GetKeyDown(KeyCode.Keypad9))
-        {
-            Move(1, 1);
-            //gameState = GameState.EnemyTurn;
-        }
 
-    }
-
-    void Move(int dx, int dy)
-    {
-        Vector3Int targetTile = new Vector3Int(Mathf.RoundToInt(playerEntity.transform.position.x + dx),
-                    Mathf.RoundToInt(playerEntity.transform.position.y + dy), 0);
-
-        //List<GameObject> entities = gameMapObj.entities;
-        foreach (GameObject entity in entities)
-        {
-            if(entity.transform.position.x == targetTile.x && entity.transform.position.y == targetTile.y)
-            {
-                //Debug.Log("You tickle the " + entity.name);// + " in the shin");
-                playerObject.GetComponent<Fighter>().attack(entity.GetComponent<Fighter>());
-                if(gameState == GameState.PlayerTurn)
-                {
-                    gameState = GameState.EnemyTurn;
-                }
-                return;
-            }            
-        }
-        
-        if (tilemap.GetTile(targetTile).name == "WallTile")
-        {
-            Debug.Log("wall");
-        }
-        else
-        {
-            playerEntity.Move(dx, dy);
-            gameState = GameState.EnemyTurn;
-
-            //gameMapObj.FOVRecompute();
-            gameMap.FOV();
-            //gameMapObj.GetVisibleCells();
-        }        
-    }
 
     void Actions()
     {
@@ -390,24 +277,14 @@ public class Engine : MonoBehaviour
         bool itemPickedUp = false;
         for (int i = 0; i < items.Count; i++)
         {
-            if (items[i].transform.position.x == playerEntity.transform.position.x && items[i].transform.position.y == playerEntity.transform.position.y)
+            if (items[i].transform.position.x == player.transform.position.x && items[i].transform.position.y == player.transform.position.y)
             {
                 items[i].GetComponent<Item>().PickUpObject();
                 itemPickedUp = true;
                 gameState = GameState.EnemyTurn;
             }
         }
-        /*
-        foreach (GameObject item in items)
-        {            
-            if (item.transform.position.x == playerEntity.transform.position.x && item.transform.position.y == playerEntity.transform.position.y)
-            {
-                item.GetComponent<Item>().PickUpObject();
-                itemPickedUp = true;
-                gameState = GameState.EnemyTurn;
-            }
-        }
-        */
+
         if(itemPickedUp == false)
         {
             uiManager.NewMessage("There is nothing to pickup.");
@@ -416,10 +293,10 @@ public class Engine : MonoBehaviour
 
     void UseStairs()
     {
-        Debug.Log("enter");
-        if (stairsObj.transform.position.x == playerEntity.transform.position.x && stairsObj.transform.position.y == playerEntity.transform.position.y)
+        //Debug.Log("enter");
+        if (stairsObj.transform.position.x == player.transform.position.x && stairsObj.transform.position.y == player.transform.position.y)
         {
-            Debug.Log("stairs");
+            uiManager.NewMessage("You decend down the hatch.");
             stairsObject.GetComponent<Stairs>().UseStairs();
         }
     }
@@ -482,7 +359,6 @@ public class Engine : MonoBehaviour
         {
             gameState = GameState.Targeting;
 
-            //highlight target cell
             highlight.transform.position = new Vector3((int)worldPoint.x, (int)worldPoint.y, -1);
             highlight.GetComponentInChildren<SpriteRenderer>().enabled = true;
 
@@ -525,63 +401,24 @@ public class Engine : MonoBehaviour
             }
             yield return null;
         }
-        //item.Fireball(target);
-    }
-    
-
-    public void AttemptMove(Unit unit, Vector3 target)
-    {
-        //place entity in center of new cell
-        //target = new Vector3(target.x - .5f, target.y - .5f, target.z);
-        /*
-        foreach (GameObject entity in entities)
-        {
-            if (entity.transform.position.x == target.x && entity.transform.position.y == target.y)
-            {
-                Debug.Log(entity.name + " kicks " + playerEntity.name + " in the shin");
-                entity.GetComponent<Fighter>().attack(playerObject.GetComponent<Fighter>());
-                gameState = GameState.EnemyTurn;
-                return;
-            }
-        }
-        */
-        //StartCoroutine(MoveToNextSpot(unit, target));
-        MoveToNextSpot2(unit, target);
-
-    }
-
-    IEnumerator MoveToNextSpot(Unit unit, Vector3 target)
-    {
-        while(unit.transform.position != target)
-        {
-            
-
-            unit.transform.position = Vector3.MoveTowards(unit.transform.position, target, unit.speed * Time.deltaTime);
-            yield return null;
+    }    
 
 
-            //entity.Move(dx, dy);
-            if(unit.transform.position == target)
-            {
-                //gameState = GameState.PlayerTurn;
-                yield break;
-            }
-        }
-    }
-
-    void MoveToNextSpot2(Unit unit, Vector3 target)
+    public void MoveToNextSpot(Unit unit, Vector3 target)
     {
         gameMap.hasEntity[(int)unit.transform.position.x, (int)unit.transform.position.y] = false;
         unit.transform.position = target;
         gameMap.hasEntity[(int)unit.transform.position.x, (int)unit.transform.position.y] = true;
         grid2.CreateGrid();
     }
-
-
-
+       
 
     void EnemyTurn()
     {
+        turnsTaken++;
+        //playerObject.GetComponent<Fighter>().UpdateHoTs(); // move to start of player turn?
+        uiManager.TurnsTakenUpdate(turnsTaken);
+
         stopwatch = new Stopwatch();
         stopwatch.Start();
         foreach (GameObject entity in entities)
@@ -627,7 +464,7 @@ public class Engine : MonoBehaviour
                     int randomNumber = UnityEngine.Random.Range(0, rTarget.Count);
                     
                     Vector3 randomTarget = rTarget[randomNumber];
-                    MoveToNextSpot2(entity.GetComponent<Unit>(), randomTarget);
+                    MoveToNextSpot(entity.GetComponent<Unit>(), randomTarget);
                     Debug.Log(randomTarget);
                     entity.GetComponent<Entity>().hasActed = true;
                 }
@@ -651,7 +488,7 @@ public class Engine : MonoBehaviour
                         if (playerInRange && !entity.GetComponent<Entity>().hasActed)
                         {
                             //Debug.Log(entity.name + " attacks player");
-                            entity.GetComponent<Fighter>().attack(playerObject.GetComponent<Fighter>());
+                            entity.GetComponent<Fighter>().Attack(playerObject.GetComponent<Fighter>());
                             entity.GetComponent<Entity>().hasActed = true;
                             //gameState = GameState.PlayerTurn;
                         }
@@ -667,12 +504,12 @@ public class Engine : MonoBehaviour
                     }
                 }
                 //else wander?
-                //grid2.CreateGrid();
             }
         }
         gameState = GameState.PlayerTurn;
+        playerTurn = false;
         stopwatch.Stop();
-        Debug.Log("Enemy turn took:" + stopwatch.Elapsed);
+        //Debug.Log("Enemy turn took:" + stopwatch.Elapsed);
     }
 
 
@@ -704,6 +541,7 @@ public class Engine : MonoBehaviour
         SaveGame.Save<int>("currentXP", playerLevel.currentXP);
 
         SaveGame.Save<int>("dungeonLevel", dungeonLevel);
+        SaveGame.Save<int>("turnsTaken", turnsTaken);
 
         //SaveGame.Save<List<GameObject>>("Player Items", inventory.items);
         inventory.SaveItems();
@@ -779,29 +617,29 @@ public class Engine : MonoBehaviour
         itemIDNumber.Clear();
         for (int j = 0; j < items.Count; j++)
         {
-            if (items[j].name == "Healing Potion")
+            if (items[j].name == "First Aid Kit")
             {
-                itemIDNumber.Add(1);
+                itemIDNumber.Add(0);
             }
             if (items[j].name == "Lightning Scroll")
             {
-                itemIDNumber.Add(2);
+                itemIDNumber.Add(1);
             }
             if (items[j].name == "Fireball Scroll")
             {
-                itemIDNumber.Add(3);
+                itemIDNumber.Add(2);
             }
             if (items[j].name == "Confusion Scroll")
             {
-                itemIDNumber.Add(4);
+                itemIDNumber.Add(3);
             }
             if (items[j].name == "Sword")
             {
-                itemIDNumber.Add(101);
+                itemIDNumber.Add(4);
             }
             if (items[j].name == "Shield")
             {
-                itemIDNumber.Add(102);
+                itemIDNumber.Add(5);
             }
 
             xposi.Add((int)items[j].transform.position.x);
@@ -846,6 +684,7 @@ public class Engine : MonoBehaviour
         playerLevel.currentXP = SaveGame.Load<int>("currentXP");
 
         dungeonLevel = SaveGame.Load<int>("dungeonLevel");
+        turnsTaken = SaveGame.Load<int>("turnsTaken");
 
         //uiManager.SetHealthText(SaveGame.Load<int>("hp"));
         uiManager.SetUIText();
@@ -916,6 +755,8 @@ public class Engine : MonoBehaviour
 
         for (int i = 0; i < xposi.Count; i++)
         {
+            CreateItem(xposi[i], yposi[i], itemIDNumber[i]);
+            /*
             if(itemIDNumber[i] <100)
             {
                 CreateItem(xposi[i], yposi[i], itemIDNumber[i]);
@@ -923,7 +764,7 @@ public class Engine : MonoBehaviour
             else if(itemIDNumber[i] < 200)
             {
                 CreateEquipment(xposi[i], yposi[i], itemIDNumber[i]);
-            }
+            }*/
 
         }
 

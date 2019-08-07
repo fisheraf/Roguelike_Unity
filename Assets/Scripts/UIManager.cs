@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
+using DG.Tweening;
 
 public class UIManager : MonoBehaviour
 {
@@ -11,8 +12,6 @@ public class UIManager : MonoBehaviour
 
 
     [SerializeField] TextMeshProUGUI healthText = null;
-    int playerMaxHP;
-
     [SerializeField] TextMeshProUGUI powerText = null;
     [SerializeField] TextMeshProUGUI defenseText = null;
 
@@ -21,24 +20,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] TextMeshProUGUI monster = null;
 
     [SerializeField] TextMeshProUGUI dungeonLevel = null;
+    [SerializeField] TextMeshProUGUI turnsTaken = null;
 
-    private void Start()
-    {
+    [SerializeField] Image damageImage = null;
 
-    }
-
-    private void Update()
-    {
-        /*
-        if (playerFighter == null)
-        {
-            playerFighter = GameObject.FindObjectOfType<Player>().GetComponent<Fighter>();
-
-            int health = playerFighter.MaxHP;
-            SetHealthText(health);
-        }
-        */
-    }
 
     public void SetPlayer()
     {
@@ -46,34 +31,11 @@ public class UIManager : MonoBehaviour
         {
             playerFighter = GameObject.FindObjectOfType<Player>().GetComponent<Fighter>();
 
-            //int health = playerFighter.MaxHP;
-            //SetHealthText(health);
             SetUIText();
         }
     }
 
-    /*
-    public void SetHealthText(int currentHealth)
-    {
-        playerMaxHP = playerFighter.MaxHP;
 
-        string healthString = "HP:" + playerMaxHP + "/" + currentHealth;
-
-        healthText.text = healthString;
-    }
-
-    public void SetPowerText()
-    {
-        string powerString = "Power:" + playerFighter.power;
-        powerText.text = powerString;
-    }
-
-    public void SetDefenseText()
-    {
-        string defenseString = "Defense:" + playerFighter.defense;
-        defenseText.text = defenseString;
-    }
-    */
 
     public void SetUIText()
     {
@@ -106,5 +68,18 @@ public class UIManager : MonoBehaviour
     public void DungeonLevelUpdate(int level)
     {
         dungeonLevel.text = "Dungeon Level: " + level;
+    }
+
+    public void TurnsTakenUpdate(int turns)
+    {
+        turnsTaken.text = "Turns  Taken: " + turns;
+    }
+
+    public void DamageFlash()
+    {
+        //damageImage.DOFade(.2f, .1f);
+        damageImage.color = new Color(1, 0, 0, .2f);
+        damageImage.DOFade(0f, .2f);
+
     }
 }

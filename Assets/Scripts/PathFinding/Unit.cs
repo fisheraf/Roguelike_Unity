@@ -13,23 +13,15 @@ public class Unit : MonoBehaviour
 
     void Start()
     {
-        //if(target == null)
-        {
-            target = FindObjectOfType<Player>().transform;
-        }
-        //PathRequestManager.RequestPath(transform.position, target.position, OnPathFound);
+        target = FindObjectOfType<Player>().transform;
+
         entity = GetComponent<Entity>();
         engine = FindObjectOfType<Engine>();
     }
 
     private void Update()
     {
-        /*
-        if(Input.GetKeyDown(KeyCode.Space))
-        {
-            PathRequestManager.RequestPath(transform.position, target.position, OnPathFound);
-        }
-        */
+
     }
 
     public void RequestPathForUnit()
@@ -43,12 +35,8 @@ public class Unit : MonoBehaviour
         {
             path = newPath;
             targetIndex = 0;
-            //StopCoroutine("FollowPath");
-            //StartCoroutine("FollowPath");
 
-            //move to path[1]
-
-            engine.AttemptMove(this, path[0]);
+            engine.MoveToNextSpot(this, path[0]);
         }
     }
 

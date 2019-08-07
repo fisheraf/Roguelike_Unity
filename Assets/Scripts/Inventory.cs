@@ -96,20 +96,18 @@ public class Inventory : MonoBehaviour
             {
                 if (items[itemNumber].GetComponent<Equippable>() != null)
                 {
-                    Debug.Log("equipped");
+                    uIManager.NewMessage("You equip the " + items[itemNumber].name + ".");
                     items[itemNumber].GetComponent<Equippable>().ToggleEquip();
                 }
                 else
                 {
-
-                    Debug.Log("use item 0");
+                    uIManager.NewMessage("You use " + items[itemNumber].name + ".");
                     items[itemNumber].GetComponent<Item>().UseObject();
                 }
             }
             else
             {
-                Debug.Log("no item");
-                //add to meassage system
+                uIManager.NewMessage("There is no item to use.");
             }
         }
         else if(engine.gameState == Engine.GameState.DropInventory)
@@ -120,8 +118,7 @@ public class Inventory : MonoBehaviour
             }
             else
             {
-                Debug.Log("no item to drop");
-                //add to meassage system
+                uIManager.NewMessage("There is no item to drop.");
             }
         }
 
@@ -155,10 +152,16 @@ public class Inventory : MonoBehaviour
         {
             int x = itemIDNumber[i];
 
+            GameObject itemObject = Instantiate(engine.itemList[x], new Vector3(-10, -10, -1), Quaternion.identity);
+
+            items.Add(itemObject);
+            itemObject.SetActive(false);
+
+            /*
             if(x == 1)
             {
-                GameObject itemObject = Instantiate(engine.itemObject, new Vector3(-10, -10, -1), Quaternion.identity);
-                itemObject.GetComponent<Item>().SetItem(1);// itemType, value);
+                GameObject itemObject = Instantiate(engine.itemList[x], new Vector3(-10, -10, -1), Quaternion.identity);
+                //itemObject.GetComponent<Item>().SetItem(1);// itemType, value);
                 
                 items.Add(itemObject);
                 itemObject.SetActive(false);
@@ -166,7 +169,7 @@ public class Inventory : MonoBehaviour
             if (x == 2)
             {
                 GameObject itemObject = Instantiate(engine.itemObject, new Vector3(-10, -10, -1), Quaternion.identity);
-                itemObject.GetComponent<Item>().SetItem(2);// itemType, value);
+                //itemObject.GetComponent<Item>().SetItem(2);// itemType, value);
 
                 items.Add(itemObject);
                 itemObject.SetActive(false);
@@ -174,7 +177,7 @@ public class Inventory : MonoBehaviour
             if (x == 3)
             {
                 GameObject itemObject = Instantiate(engine.itemObject, new Vector3(-10, -10, -1), Quaternion.identity);
-                itemObject.GetComponent<Item>().SetItem(3);// itemType, value);
+                //itemObject.GetComponent<Item>().SetItem(3);// itemType, value);
 
                 items.Add(itemObject);
                 itemObject.SetActive(false);
@@ -182,15 +185,15 @@ public class Inventory : MonoBehaviour
             if (x == 4)
             {
                 GameObject itemObject = Instantiate(engine.itemObject, new Vector3(-10, -10, -1), Quaternion.identity);
-                itemObject.GetComponent<Item>().SetItem(4);//itemType, value);
+                //itemObject.GetComponent<Item>().SetItem(4);//itemType, value);
 
                 items.Add(itemObject);
                 itemObject.SetActive(false);
             }
             if (x == 101)
             {
-                GameObject itemObject = Instantiate(engine.equipmentObject, new Vector3(-10, -10, -1), Quaternion.identity);
-                itemObject.GetComponent<Equippable>().SetEquipment(101);//itemType, value);
+                GameObject itemObject = Instantiate(engine.itemObject, new Vector3(-10, -10, -1), Quaternion.identity);
+                //itemObject.GetComponent<Equippable>().SetEquipment(101);//itemType, value);
 
                 items.Add(itemObject);
                 equipment.equipmentList.Add(itemObject.GetComponent<Equippable>());
@@ -198,23 +201,25 @@ public class Inventory : MonoBehaviour
             }
             if (x == 102)
             {
-                GameObject itemObject = Instantiate(engine.equipmentObject, new Vector3(-10, -10, -1), Quaternion.identity);
-                itemObject.GetComponent<Equippable>().SetEquipment(102);//itemType, value);
+                GameObject itemObject = Instantiate(engine.itemObject, new Vector3(-10, -10, -1), Quaternion.identity);
+                //itemObject.GetComponent<Equippable>().SetEquipment(102);//itemType, value);
 
                 items.Add(itemObject);
                 equipment.equipmentList.Add(itemObject.GetComponent<Equippable>());
                 //itemObject.SetActive(false);
             }
-
+            */
         }
     }
 
     public void SaveItems()
     {
+        //switch to just save id#
+
         itemIDNumber.Clear();
         for (int i = 0; i < items.Count; i++)
         {
-            if(items[i].name == "Healing Potion")
+            if(items[i].name == "First Aid Kit")
             {
                 itemIDNumber.Add(1);
             }

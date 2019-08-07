@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -8,15 +7,19 @@ using System.Diagnostics;
 using Debug = UnityEngine.Debug;
 using TMPro;
 
+using DG.Tweening;
+
 
 public class GameMap : MonoBehaviour
 {
-    public Stopwatch timer;
-    
+    public Stopwatch timer;    
 
     [SerializeField] Tilemap tilemap;
     [SerializeField] Engine engine;
     [SerializeField] Grid2 grid2;
+
+    [SerializeField] ItemTable itemTable;
+    [SerializeField] MonsterTable monsterTable;
 
     [Tooltip("Needs to be multiple of 2")]
     public int mapWidth = 90;//need to be multiples of 2
@@ -27,78 +30,12 @@ public class GameMap : MonoBehaviour
     public int minRoomSize = 5;
     public int maxNumberOfRooms = 50;
 
-    // int maxNumberOfMonstersPerRoom = 4;
-    //numer of monsters (key) after level (value)
-    List<KeyValuePair<int, int>> monsterCountTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(2,1),
-        new KeyValuePair<int, int>(3,4),
-        new KeyValuePair<int, int>(5,6)
-    };
-
-    //public int maxNumberOfItemsPerRoom = 3;
-    //likelihood of item (key) after level (value)
-    List<KeyValuePair<int, int>> itemCountTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(1,1),
-        new KeyValuePair<int, int>(2,4),
-        new KeyValuePair<int, int>(3,6)
-    };
-
-
-    List<KeyValuePair<int, int>> goblinChanceTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(900,0)
-    };
-    List<KeyValuePair<int, int>> orcChanceTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(151,3),
-        new KeyValuePair<int, int>(301,5),
-        new KeyValuePair<int, int>(601,7)
-    };
-
-
-    List<KeyValuePair<int, int>> healingChanceTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(500,0)
-    }; 
-
-    List<KeyValuePair<int, int>> lightningChanceTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(0,0),
-        new KeyValuePair<int, int>(250,4)
-    };
-
-    List<KeyValuePair<int, int>> fireballChanceTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(1,0),
-        new KeyValuePair<int, int>(249,6)
-    };
-
-    List<KeyValuePair<int, int>> confusionChanceTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(2,0),
-        new KeyValuePair<int, int>(100,2)
-    };
-
-    List<KeyValuePair<int, int>> swordChanceTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(3,0),
-        new KeyValuePair<int, int>(101,2)
-    };
-
-    List<KeyValuePair<int, int>> shieldChanceTable = new List<KeyValuePair<int, int>>()
-    {
-        new KeyValuePair<int, int>(4,0),
-        new KeyValuePair<int, int>(102,2)
-    };
 
 
     //public int fovAlgorithm = 0;
     public bool fovLightWalls = true;
     public int fovRadius = 8;
 
-    //bool fovRecompute = true;
 
     public bool debugShowAllTiles = false;
 
@@ -108,35 +45,14 @@ public class GameMap : MonoBehaviour
     public Color wallColor;
     public Color wallColorLit;
     public Color floorColor;
-    public Color floorColorLit;
+    Color floorColorLit;
+    public Color floorColorLit1;
+    public Color floorColorLit2;
 
-    //[SerializeField] Vector2[] wallLocations; //set by script...
-    //[SerializeField] Vector2[] floorLocations;
-
-    //public RectInt r;
 
     public GameObject player;
 
-    
-    //clean up needed...
-    /*
-    List<Vector3Int> seenTiles = new List<Vector3Int>();
-    List<Vector3Int> recentTiles = new List<Vector3Int>();
-    List<Vector3Int> previousTiles = new List<Vector3Int>();
-
-    List<Vector3Int> visibleFloorTiles = new List<Vector3Int>();
-    List<Vector3Int> visibleWallTiles = new List<Vector3Int>();
-    List<Vector3Int> visibleTiles = new List<Vector3Int>();
-    */
-
-    //int numOfTiles;
-
-    //List<bool> tileSeen = new List<bool>(4500); //remove hard code?
-    //List<bool> tileVisible = new List<bool>(4500);
-    //List<bool> tileIsWall = new List<bool>(4500);
-
-
-    Cell[,] grid;
+        Cell[,] grid;
     public List<Cell> path;
 
     public bool[,] tileSeen = new bool[76, 40];
@@ -154,26 +70,7 @@ public class GameMap : MonoBehaviour
     public List<GameObject> equipment = new List<GameObject>();
     public GameObject stairs;
 
-    public Dictionary<int, string> monsterDict = new Dictionary<int, string>
-    {
-        {900, "goblin" },
-        {100, "orc" }
-    };
-
     
-    public Dictionary<int, string> itemDict = new Dictionary<int, string>
-    {
-        
-        {500, "healing potion" },
-        {0, "lightning scroll" },
-        {1, "fireball scroll" },
-        {2, "confusion scroll" },
-        {3, "sword" },
-        {4, "shield" }
-        
-    };
-
-
     private void Awake()
     {
         //FillMap();
@@ -186,19 +83,11 @@ public class GameMap : MonoBehaviour
         tilemap = FindObjectOfType<Tilemap>();
         engine = FindObjectOfType<Engine>();
         grid2 = FindObjectOfType<Grid2>();
-        //set camera size from width & height?
-        //PlaceTile();        
 
-        //numOfTiles = mapHeight * mapWidth;
-        //MakeMap();
-        //r = new RectInt(botLeft, size);
-        //CreateRoom(r);        
-        //PlaceTile(8, 8, wallTiles);
+        itemTable = FindObjectOfType<ItemTable>();
+        monsterTable = FindObjectOfType<MonsterTable>();
+
         player = GameObject.Find("Player");
-        //FOV2();
-
-        //FillMap();
-        //MakeMap();
     }
 
     // Update is called once per frame
@@ -228,21 +117,10 @@ public class GameMap : MonoBehaviour
         {
             ShowAllTiles();
             Render();
-            //debugShowAllTiles = false;
         }
-    }
 
-    /*void PlaceTile()// X & Y?
-    {
-        for (int i = 0; i < wallLocations.Length; i++)
-        {
-            Instantiate(wallTiles, wallLocations[i], Quaternion.identity);
-        }
-        for (int i = 0; i < floorLocations.Length; i++)
-        {
-            Instantiate(floorTiles, floorLocations[i], Quaternion.identity);
-        }
-    }*/
+        ColorLerp();
+    }
 
     public void NewMap()
     {
@@ -261,7 +139,6 @@ public class GameMap : MonoBehaviour
             for (int y = 0; y < mapHeight; y++)
             {
                 PlaceTile(x, y, wallTiles);
-                //Debug.Log(i * mapHeight + j);
                 tileIsWall[x, y] = true; 
             }
         }
@@ -328,9 +205,7 @@ public class GameMap : MonoBehaviour
             {
                 bool walkable = !tileIsWall[x, y];
                 Vector3 worldPoint = new Vector3(x, y, 0);
-                //Debug.Log(worldPoint);
                 grid[x, y] = new Cell(walkable, worldPoint, x, y);
-                //Debug.Log(grid[x, y].gridX + ", " + grid[x, y].gridY);
             }
         }
 
@@ -338,28 +213,6 @@ public class GameMap : MonoBehaviour
         Debug.Log("Creating grid took:" + timer.Elapsed);
     }
 
-    /*void OnDrawGizmos()
-    {
-        //timer = new Stopwatch();
-        //timer.Start();
-
-        Gizmos.DrawWireCube(new Vector3(mapWidth/2, mapHeight/2, 0), new Vector3(mapWidth, mapHeight, 1));
-
-        if (grid != null)
-        {
-            foreach (Cell n in grid)
-            {
-                Gizmos.color = (n.walkable) ? new Color(1,1,1,.3f) : new Color(1,0,0,.3f);
-                if (path != null)
-                    if (path.Contains(n))
-                        Gizmos.color = new Color(0,0,0,.3f);
-                Gizmos.DrawCube(new Vector3(n.worldPosition.x +.5f, n.worldPosition.y + .5f,0), Vector3.one * (.9f));
-            }
-        }
-
-        //timer.Stop();
-        //Debug.Log("Creating gizmos took:" + timer.Elapsed);
-    }*/
 
     int numberOfRooms = 0;
 
@@ -400,7 +253,7 @@ public class GameMap : MonoBehaviour
                     Mathf.RoundToInt(newRoom.yMin + 1),
                     Mathf.RoundToInt(newRoom.width - 2), 
                     Mathf.RoundToInt(newRoom.height - 2));
-                //StartCoroutine(CreateRoomD(newRoomInt));
+
                 CreateRoom(newRoomRect);
 
                 //center of room for tunnels
@@ -410,8 +263,6 @@ public class GameMap : MonoBehaviour
 
                 if (numberOfRooms == 0)
                 {
-                    //engine.CreateEntity(newX, newY, -1, 0, new Color32(0, 135, 255, 255), "Player");
-
                     if(player == null)
                     {
                         engine.CreatePlayer(newX, newY, -1, 100, 1, 4);
@@ -421,12 +272,6 @@ public class GameMap : MonoBehaviour
                         player.transform.position = new Vector3(newX, newY, -1);
                     }
                     player = GameObject.Find("Player");
-                    
-                    //if(player == null)
-                    //{
-                    //    player = GameObject.Find("Player");
-                    //}
-                    //player.transform.position = new Vector3(newX, newY, -1);
                 }
                 else
                 {
@@ -437,34 +282,23 @@ public class GameMap : MonoBehaviour
 
                     //randomly pick tunnel direction
                     if (Random.Range(0, 1) == 1)
-                    {
-
-                        //StartCoroutine(CreateVerticalTunnel(prevX, newX, prevY));
-                        //StartCoroutine(CreateHorizontalTunnel(prevY, newY, newX));
-
-                        CreateVerticalTunnel(prevX, newX, prevY);
+                    { CreateVerticalTunnel(prevX, newX, prevY);
                         CreateHorizontalTunnel(prevY, newY, newX);
                     }
                     else
                     {
-                        //StartCoroutine(CreateVerticalTunnel(prevY, newY, prevX));
-                        //StartCoroutine(CreateHorizontalTunnelD(prevX, newX, newY));
-
                         CreateVerticalTunnel(prevY, newY, prevX);
                         CreateHorizontalTunnel(prevX, newX, newY);
                     }
                 }
 
-                //PlaceEntities(newRoomInt);
 
                 PlaceEntities(newRoomRect);
                 PlaceItems(newRoomRect);
-
-
+                
                 rooms.Add(newRoom);
                 numberOfRooms++;
             }
-            //yield return new WaitForSeconds(.1f);
         }
 
         if(rooms.Count > 1)
@@ -475,9 +309,7 @@ public class GameMap : MonoBehaviour
 
         timer.Stop();
         Debug.Log("Creating map took:" + timer.Elapsed);
-        //FOVRecompute();
         FOV();
-        //GetVisibleCells();
     }
     
 
@@ -489,12 +321,8 @@ public class GameMap : MonoBehaviour
             {
                 PlaceTile(x, y, floorTiles);
                 tileIsWall[x, y] = false;
-                //grid[x, y] = new Cell(true, new Vector3(x, y, 0), x, y);
-                //StartCoroutine(PlaceTileWithDelay(i, j, floorTiles));
             }
         }
-        //PlaceEntities(rectInt);
-        //PlaceItems(rectInt);
     }
     void CreateHorizontalTunnel(int x1, int x2, int y)
     {
@@ -502,8 +330,6 @@ public class GameMap : MonoBehaviour
         {
             PlaceTile(x, y, floorTiles);
             tileIsWall[x, y] = false;
-            //grid[x, y] = new Cell(true, new Vector3(x, y, 0), x, y);
-            //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
         }
     }
 
@@ -513,9 +339,6 @@ public class GameMap : MonoBehaviour
         {
             PlaceTile(x, y, floorTiles);
             tileIsWall[x, y] = false;
-            //grid[x, y] = new Cell(true, new Vector3(x, y, 0), x, y);
-
-            //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
         }
     }
 
@@ -524,64 +347,18 @@ public class GameMap : MonoBehaviour
         tilemap.SetTile(new Vector3Int(x, y, 0), tile);
         tilemap.SetTileFlags(new Vector3Int(x, y, 0), TileFlags.None);
     }
-
-    IEnumerator CreateRoomD(RectInt rectInt)
-    {
-        for (int i = rectInt.xMin; i < rectInt.xMax; i++)
-        {
-            for (int j = rectInt.yMin; j < rectInt.yMax; j++)
-            {
-                PlaceTile(i, j, floorTiles);
-                yield return new WaitForSeconds(.1f);
-                //StartCoroutine(PlaceTileWithDelay(i, j, floorTiles));
-            }
-        }
-    }
-
-    IEnumerator CreateHorizontalTunnelD(int x1, int x2, int y)
-    {
-        for (int x   = Mathf.Min(x1, x2); x < Mathf.Max(x1, x2) + 1; x++)
-        {
-            PlaceTile(x, y, floorTiles);
-            yield return new WaitForSeconds(.1f);
-            //StartCoroutine(PlaceTileWithDelay(x, y, floorTiles));
-        }
-    }
-       
-    IEnumerator PlaceTileWithDelay(int x, int y, TileBase tile)
-    {
-        tilemap.SetTile(new Vector3Int(x, y, 0), tile);
-        yield return new WaitForSeconds(1);
-    }
          
 
     float degToRad = Mathf.PI / 100;
 
     public int DiagDistance(int x, int y, int x1, int y1)
     {
-        /*
-        int dx = x1 - x;
-        int dy = y1 - y;
-        return  Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
-        */
-
         return (int)Vector2.Distance(new Vector2(x, y), new Vector2(x1, y1));
     }
 
     public void FOV()
     {
-        //Debug.Log("FOV");
         ClearVisibleTiles();
-        //timer = new Stopwatch();
-        //timer.Start();
-
-        //visibleWallTiles.Clear();
-        //visibleFloorTiles.Clear();
-
-        //previousTiles.AddRange(recentTiles);
-
-        //recentTiles.Clear();
-        //tileVisible = new bool[5185];
 
 
         int x = Mathf.RoundToInt(player.transform.position.x);
@@ -606,28 +383,15 @@ public class GameMap : MonoBehaviour
 
                 if (tilemap.GetTile(new Vector3Int(tx, ty, 0)).name == "WallTile")
                 {
-                    //visibleWallTiles.Add(new Vector3Int(tx, ty, 0));
-                    //seenTiles.Add(new Vector3Int(tx, ty, 0));
                     tileVisible[tx, ty] = true;
                     tileSeen[tx, ty] = true;
                     break;
                 }
 
-                //visibleFloorTiles.Add(new Vector3Int(x, y, 0));
-                //seenTiles.Add(new Vector3Int(tx, ty, 0));
-
                 tileVisible[tx, ty] = true;
                 tileSeen[tx, ty] = true;
-
-                //recentTiles.Add(new Vector3Int(tx, ty, 0));
             }
         }
-
-        //RenderRecent();
-
-        //timer.Stop();
-        //Debug.Log("Rendering took:" + timer.Elapsed);
-        //previousTiles.Clear();
 
         RayCastPostProcess();
 
@@ -644,16 +408,6 @@ public class GameMap : MonoBehaviour
                 tileVisible[x, y] = false;
                 hasEntity[x, y] = false;
                 isWalkable[x, y] = true;
-
-                /*foreach (GameObject entity in entities)
-                {
-                    if (entity.transform.position.z == -1 && entity.name != "Player")
-                    {
-                        Debug.Log("move forward" + entity.transform.position + "," + entity.name);
-                        //entity.transform.position = new Vector3(entity.transform.position.x, entity.transform.position.y, 1);
-                        //entity.GetComponentInChildren<GameObject>().SetActive(false);
-                    }
-                }*/
             }
         }
     }
@@ -850,12 +604,8 @@ public class GameMap : MonoBehaviour
         foreach (GameObject entity in entities)
         {            
             {
-                //moved entities to z = 1 to remove from camera
-                //entity.transform.position = new Vector3(entity.transform.position.x, entity.transform.position.y, 1);
                 //entity.GetComponentInChildren<SpriteRenderer>().enabled = false;
-                //entity.GetComponentInChildren<TextMeshPro>().enabled = false;
                 entity.GetComponentInChildren<TextMeshPro>().enabled = false;
-                //entity.GetComponentInChildren<SpriteRenderer>().color = Color.red;
             }
         }
         foreach (GameObject deadEntity in deadEntities)
@@ -866,70 +616,19 @@ public class GameMap : MonoBehaviour
         {
             item.GetComponentInChildren<SpriteRenderer>().enabled = false;
         }
-    }
-    
+    }    
  
-
-    private int RandomChoiceIndex(List<int> chances)
-    {
-        int randomChance = Random.Range(1, chances.Sum());
-
-        int runningSum = 0;
-        int choice = 0;
-        for (int i = 0; i < chances.Count; i++)
-        {
-            runningSum += chances[i];
-
-            if (randomChance <= runningSum)
-            {
-                return choice;
-            }
-            choice += 1;
-        }
-        return 0;
-    }
-
-    //key is %chance and value is chance selection(monst/item)
-    private string RandomChoiceFromDict(Dictionary<int, string> choiceDict)
-    {
-        List<int> chances = choiceDict.Keys.ToList();
-        List<string> choices = choiceDict.Values.ToList();
-
-        return choices[RandomChoiceIndex(chances)];
-    }
-
-    //key is %chance and value is dungeon level
-    public int FromDungeonLevel(List<KeyValuePair<int, int>> table)
-    {
-        for (int i = table.Count - 1; i >= 0; i--)
-        {
-            if (table[i].Value <= engine.dungeonLevel)
-            {
-                return table[i].Key;
-            }
-        }
-        return 0;
-    }
 
     public void UpdateDicts()
     {
-        monsterDict.Clear();  
-        monsterDict.Add(FromDungeonLevel(goblinChanceTable), "goblin");
-        monsterDict.Add(FromDungeonLevel(orcChanceTable), "orc");
-
-        itemDict.Clear();
-        itemDict.Add(FromDungeonLevel(healingChanceTable), "healing potion");
-        itemDict.Add(FromDungeonLevel(lightningChanceTable), "lightning scroll");
-        itemDict.Add(FromDungeonLevel(fireballChanceTable), "fireball scroll");
-        itemDict.Add(FromDungeonLevel(confusionChanceTable), "confusion scroll");
-        itemDict.Add(FromDungeonLevel(swordChanceTable), "sword");
-        itemDict.Add(FromDungeonLevel(shieldChanceTable), "shield");
+        itemTable.UpdateDicts();
+        monsterTable.UpdateDicts();
     }
 
 
     public void PlaceEntities(RectInt rectInt)
     {
-        int maxNumberOfMonstersPerRoom = FromDungeonLevel(monsterCountTable);
+        int maxNumberOfMonstersPerRoom = monsterTable.FromDungeonLevel(monsterTable.monsterCountTable);
         int numberOfMonsters = Random.Range(0, maxNumberOfMonstersPerRoom + 1);
 
         for (int i = 0; i <= numberOfMonsters; i++)
@@ -940,27 +639,8 @@ public class GameMap : MonoBehaviour
             if (hasEntity[x, y] || (player.transform.position.x == x && player.transform.position.y == y)) return;
 
             {
-                /*
-                if(Random.Range(0,100) < 20)
-                {
-                    //engine.CreateEntity(x, y, 1, 2, new Color32(0, 80, 0, 255), "Orc", 10, 1, 3);
-                    engine.CreateEntity(x, y, 1);
-                }
-                else
-                {
-                    //.CreateEntity(x, y, 1, 2, new Color32(0, 160, 0, 255), "Goblin", 5, 0, 2);
-                    engine.CreateEntity(x, y, 0);
-                }
-                */
-                string monsterChoice = RandomChoiceFromDict(monsterDict);
-                if(monsterChoice == "orc")
-                {
-                    engine.CreateEntity(x, y, 1);
-                }
-                else
-                {
-                    engine.CreateEntity(x, y, 0);
-                }
+
+                monsterTable.PlaceMonster(x, y);
             }
 
         }
@@ -969,7 +649,7 @@ public class GameMap : MonoBehaviour
     public void PlaceItems(RectInt rectInt)
     {
         //int numberOfItems = 10;//Random.Range(0, maxNumberOfItemsPerRoom);
-        int maxNumberOfItemsPerRoom = FromDungeonLevel(itemCountTable);
+        int maxNumberOfItemsPerRoom = itemTable.FromDungeonLevel(itemTable.itemCountTable);
         int numberOfItems = Random.Range(0, maxNumberOfItemsPerRoom + 1);
 
         for (int i = 0; i <= numberOfItems; i++)
@@ -979,59 +659,7 @@ public class GameMap : MonoBehaviour
 
             if (hasItem[x, y]) return;
 
-            /*
-            {
-                int itemChance = Random.Range(0, 500);
-
-                if (itemChance < 25)
-                {
-                    engine.CreateItem(x, y, 1);
-
-                }
-                else if (itemChance < 50)
-                {
-                    engine.CreateItem(x, y, 2);
-
-                }
-                else if (itemChance < 75)
-                {
-                    engine.CreateItem(x, y, 3);
-                }
-                else
-                {
-                    engine.CreateItem(x, y, 4);
-                }
-            }
-            */
-
-            string itemChoice = RandomChoiceFromDict(itemDict);
-            //Debug.Log(itemChoice);
-
-            if (itemChoice == "healing potion")
-            {
-                engine.CreateItem(x, y, 1);
-            }
-            else if (itemChoice == "lightning scroll")
-            {
-                engine.CreateItem(x, y, 2);
-            }
-            else if (itemChoice == "fireball scroll")
-            {
-                engine.CreateItem(x, y, 3);
-            }
-            else if(itemChoice == "confusion scroll")
-            {
-                engine.CreateItem(x, y, 4);
-            }
-
-            else if(itemChoice == "sword")
-            {
-                engine.CreateEquipment(x, y, 101);
-            }
-            else if(itemChoice == "shield")
-            {
-                engine.CreateEquipment(x, y, 102);
-            }
+            itemTable.PlaceItem(x, y);
         }
     }   
 
@@ -1091,6 +719,27 @@ public class GameMap : MonoBehaviour
         int y = (int)worldPosition.y;
         return grid[x, y];
     }
+
+    int frames= 0;
+
+    void ColorLerp()
+    {
+        if(engine.gameState == Engine.GameState.MainMenu)
+        {
+            return;
+        }
+
+        float speed = .05f;
+        float t = (Mathf.Sin(Time.time * speed) + 1) / 2;
+        //Debug.Log(t);
+        floorColorLit = Color.Lerp(floorColorLit1, floorColorLit2, t);
+
+        frames++;
+        if (frames > 1000) { frames = 0; }
+        if (frames % 10 == 0) { Render(); }
+
+    }
+
 
     #region Other FOV Attempts
 

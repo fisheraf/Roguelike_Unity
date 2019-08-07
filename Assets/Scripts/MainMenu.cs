@@ -4,10 +4,12 @@ using UnityEngine;
 
 public class MainMenu : MonoBehaviour
 {
+    Engine engine;
+
     // Start is called before the first frame update
     void Start()
     {
-        
+        engine = FindObjectOfType<Engine>();
     }
 
     // Update is called once per frame
@@ -19,5 +21,6 @@ public class MainMenu : MonoBehaviour
     public void HideMenu()
     {
         gameObject.SetActive(false);
+        engine.gameState = Engine.GameState.PlayerTurn;
     }
 }

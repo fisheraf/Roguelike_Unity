@@ -18,7 +18,6 @@ public class LevelUp : MonoBehaviour
 
     private void Start()
     {
-        //playerFighter = FindObjectOfType<Player>().GetComponent<Fighter>();
         engine = FindObjectOfType<Engine>();
         panel.SetActive(false);
     }
@@ -44,7 +43,6 @@ public class LevelUp : MonoBehaviour
 
     public void OpenMenu()
     {
-        //lastGameState = engine.gameState;
         engine.gameState = Engine.GameState.LevelUp;
         Debug.Log("level up state");
         panel.SetActive(true);
@@ -56,7 +54,6 @@ public class LevelUp : MonoBehaviour
     public void CloseMenu()
     {
         engine.gameState = Engine.GameState.EnemyTurn;
-        //engine.gameState = Engine.GameState.LevelUp;
         panel.SetActive(false);
     }
 
@@ -79,7 +76,6 @@ public class LevelUp : MonoBehaviour
         FindObjectOfType<UIManager>().SetUIText();
         panel.SetActive(false);
         engine.gameState = Engine.GameState.EnemyTurn;
-        //engine.gameState = lastGameState;
     }
 
 }
